@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import List, Optional
-from torch import Tensor
+from torch import  Tensor
+import torch
 import numpy as np
 import h5py
 import os
@@ -109,7 +110,9 @@ class AbsSave:
                     else:
                         setattr(self, attr, data[()])
                 elif type(data[:]) is np.ndarray:
-                    setattr(self, attr, Tensor(data[:], device=DEVICE))
+                  
+                    setattr(self, attr, torch.tensor(data[:], device=DEVICE))
+                    
                 elif isinstance(data[()], bytes):  # Strings are usually stored as bytes
                     setattr(self, attr, data[()].decode("utf-8"))
 

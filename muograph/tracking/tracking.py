@@ -754,6 +754,7 @@ class TrackingMST:
     _vars_to_load = ["tracks", "points", "angular_res", "E", "tracks_eff", "hits"]
 
     def __init__(
+        
         self,
         trackings: Tuple[Tracking, Tracking] = None,
     ) -> None:
@@ -766,7 +767,7 @@ class TrackingMST:
             for the incoming muon tracks (Tracking.label = 'above') and outgoing tracks
             (Tracking.label = 'below')
         """
-
+       
         # Load data from Tracking instances
         if trackings is not None:
             for tracking, tag in zip(trackings, ["_in", "_out"]):

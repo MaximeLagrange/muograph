@@ -634,6 +634,10 @@ class VoxelPlotting:
         x_label = dim_mapping[dim]["x_label"]
         y_label = dim_mapping[dim]["y_label"]
 
+        if torch.cuda.is_available():
+            DEVICE = "cuda"
+        else:
+            DEVICE = "cpu"
         # Loop over the number of voxels along `dim` dimension
         for i, slice in enumerate(
             range(
@@ -643,9 +647,17 @@ class VoxelPlotting:
             )
         ):
             preds_slice = slice_fn(xyz_voxel_preds, slice)
+
             z_min = z_min_fn(voi, slice)  # type: ignore
             z_max = z_max_fn(voi, slice)  # type: ignore
-
+            if DEVICE == "cuda":
+               
+                preds_slice = preds_slice.cpu().numpy()
+                z_max = z_max.cpu().numpy()
+                z_min = z_min.cpu().numpy()
+                vmin = vmin.cpu().numpy()
+                vmax = vmax.cpu().numpy()
+    
             im = axs[i].imshow(
                 preds_slice.T,
                 origin="lower",

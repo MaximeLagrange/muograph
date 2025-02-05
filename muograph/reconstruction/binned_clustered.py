@@ -295,7 +295,7 @@ class BCA(POCA, AbsVoxelInferer):
             i, j, k = coord.tolist()
             score_list[i][j][k] = self.compute_vox_wise_metric(
                 metric_method=metric_method,
-                vox_id=torch.tensor([i, j, k]),
+                vox_id=torch.tensor([i, j, k], device=bca_indices.device),
                 use_p=use_p,
                 bca_indices=bca_indices,
                 poca_points=poca_points,

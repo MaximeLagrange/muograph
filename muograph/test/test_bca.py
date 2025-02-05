@@ -4,9 +4,10 @@ from muograph.reconstruction.binned_clustered import BCA
 from muograph.volume.volume import Volume
 from muograph.utils.save import muograph_path
 
+import torch
+
 import os
 from pathlib import Path
-import numpy as np
 from functools import partial
 import math
 
@@ -49,8 +50,8 @@ def test_bca_predictions() -> None:
     bca.bca_params = {
         "n_max_per_vox": 20,
         "n_min_per_vox": 3,
-        "score_method": partial(np.quantile, q=0.5),
-        "metric_method": partial(np.log),  # type: ignore
+        "score_method": partial(torch.quantile, q=0.5),
+        "metric_method": partial(torch.log),  # type: ignore
         "p_range": (0, 1000000),
         "dtheta_range": (0.05 * math.pi / 180, 20 * math.pi / 180),
     }

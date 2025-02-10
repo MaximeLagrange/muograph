@@ -267,8 +267,8 @@ class POCA(AbsSave, VoxelPlotting):
         n_poca_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=dtype_n)
 
         for i in range(voi.n_vox_xyz[2]):
-            z_min = voi.xyz_min[2] + i * voi.vox_width
-            z_max = z_min + voi.vox_width
+            z_min = voi.xyz_min[2] + i * voi.vox_width[2]
+            z_max = z_min + voi.vox_width[2]
             mask_slice = (poca_points[:, 2] >= z_min) & ((poca_points[:, 2] <= z_max))
 
             H, _, __ = np.histogram2d(

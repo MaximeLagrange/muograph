@@ -498,8 +498,8 @@ class ASR(AbsSave, AbsVoxelInferer):
                 vox_x = self.voi.voxel_centers[ix, 0, 0, 0] if proj == "XZ" else self.voi.voxel_centers[0, ix, 0, 1]
                 label = "Triggered voxel" if i == 0 else None
                 ax.scatter(
-                    x=vox_x,
-                    y=self.voi.voxel_centers[0, 0, iy, 2],
+                    x=vox_x.detach().cpu(),
+                    y=self.voi.voxel_centers[0, 0, iy, 2].detach().cpu(),
                     color="blue",
                     label=label,
                     alpha=0.3,

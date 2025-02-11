@@ -90,7 +90,6 @@ class Volume:
         Returns:
             x (`Tuple[Tensor, Tensor]`): Voxel centers and voxel edges as tensors.
         """
-        print("hihihi", vox_width)
         # Compute voxel centers for each axis
         xs = torch.linspace(
             xyz_min[0] + vox_width[0] / 2,

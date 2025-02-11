@@ -589,12 +589,12 @@ class VoxelPlotting:
                 "z_min_fn": lambda v, s: v.voxel_edges[0, 0, s, 0, 2].detach().cpu().numpy(),
                 "z_max_fn": lambda v, s: v.voxel_edges[0, 0, s + nslice_per_plot - 1, 1, 2].detach().cpu().numpy(),
                 "left_right_extent": (
-                    voi.voxel_edges[0, 0, 0, 0, 0],
-                    voi.voxel_edges[-1, 0, 0, 1, 0],
+                    voi.voxel_edges[0, 0, 0, 0, 0].detach().cpu().numpy(),
+                    voi.voxel_edges[-1, 0, 0, 1, 0].detach().cpu().numpy(),
                 ),
                 "bottom_top_extent": (
-                    voi.voxel_edges[0, 0, 0, 0, 1],
-                    voi.voxel_edges[0, -1, 0, 1, 1],
+                    voi.voxel_edges[0, 0, 0, 0, 1].detach().cpu().numpy(),
+                    voi.voxel_edges[0, -1, 0, 1, 1].detach().cpu().numpy(),
                 ),
                 "dim_label": "z",
                 "x_label": f"x [{d_unit}]",
@@ -606,12 +606,12 @@ class VoxelPlotting:
                 "z_min_fn": lambda v, s: v.voxel_edges[0, s, 0, 0, 1].detach().cpu().numpy(),
                 "z_max_fn": lambda v, s: v.voxel_edges[0, s + nslice_per_plot - 1, 0, 1, 1].detach().cpu().numpy(),
                 "left_right_extent": (
-                    voi.voxel_edges[0, 0, 0, 0, 0],
-                    voi.voxel_edges[-1, 0, 0, 1, 0],
+                    voi.voxel_edges[0, 0, 0, 0, 0].detach().cpu().numpy(),
+                    voi.voxel_edges[-1, 0, 0, 1, 0].detach().cpu().numpy(),
                 ),
                 "bottom_top_extent": (
-                    voi.voxel_edges[0, 0, 0, 0, 2],
-                    voi.voxel_edges[0, 0, -1, 1, 2],
+                    voi.voxel_edges[0, 0, 0, 0, 2].detach().cpu().numpy(),
+                    voi.voxel_edges[0, 0, -1, 1, 2].detach().cpu().numpy(),
                 ),
                 "dim_label": "y",
                 "x_label": f"x [{d_unit}]",
@@ -623,12 +623,12 @@ class VoxelPlotting:
                 "z_min_fn": lambda v, s: v.voxel_edges[s, 0, 0, 0, 0].detach().cpu().numpy(),
                 "z_max_fn": lambda v, s: v.voxel_edges[s + nslice_per_plot - 1, 0, 0, 1, 0].detach().cpu().numpy(),
                 "left_right_extent": (
-                    voi.voxel_edges[0, 0, 0, 0, 1],
-                    voi.voxel_edges[0, -1, 0, 1, 1],
+                    voi.voxel_edges[0, 0, 0, 0, 1].detach().cpu().numpy(),
+                    voi.voxel_edges[0, -1, 0, 1, 1].detach().cpu().numpy(),
                 ),
                 "bottom_top_extent": (
-                    voi.voxel_edges[0, 0, 0, 0, 2],
-                    voi.voxel_edges[0, 0, -1, 1, 2],
+                    voi.voxel_edges[0, 0, 0, 0, 2].detach().cpu().numpy(),
+                    voi.voxel_edges[0, 0, -1, 1, 2].detach().cpu().numpy(),
                 ),
                 "dim_label": "x",
                 "x_label": f"y [{d_unit}]",
@@ -813,12 +813,12 @@ class VoxelPlotting:
                 "x_label": "x",
                 "y_label": "y",
                 "x_lim": (
-                    (voi.xyz_min[0] - 2 * voi.vox_width).detach().cpu().item(),
-                    (voi.xyz_max[0] + 2 * voi.vox_width).detach().cpu().item(),
+                    (voi.xyz_min[0] - 2 * voi.vox_width[0]).detach().cpu().item(),
+                    (voi.xyz_max[0] + 2 * voi.vox_width[0]).detach().cpu().item(),
                 ),
                 "y_lim": (
-                    (voi.xyz_min[1] - 2 * voi.vox_width).detach().cpu().item(),
-                    (voi.xyz_max[1] + 2 * voi.vox_width).detach().cpu().item(),
+                    (voi.xyz_min[1] - 2 * voi.vox_width[1]).detach().cpu().item(),
+                    (voi.xyz_max[1] + 2 * voi.vox_width[1]).detach().cpu().item(),
                 ),
                 "extent_x": (voi.xyz_min[0].detach().cpu().item(), voi.xyz_max[0].detach().cpu().item()),
                 "extent_y": (voi.xyz_min[1].detach().cpu().item(), voi.xyz_max[1].detach().cpu().item()),
@@ -835,12 +835,12 @@ class VoxelPlotting:
                 "x_label": "x",
                 "y_label": "z",
                 "x_lim": (
-                    (voi.xyz_min[0] - 2 * voi.vox_width).detach().cpu().item(),
-                    (voi.xyz_max[0] + 2 * voi.vox_width).detach().cpu().item(),
+                    (voi.xyz_min[0] - 2 * voi.vox_width[0]).detach().cpu().item(),
+                    (voi.xyz_max[0] + 2 * voi.vox_width[0]).detach().cpu().item(),
                 ),
                 "y_lim": (
-                    (voi.xyz_min[2] - 2 * voi.vox_width).detach().cpu().item(),
-                    (voi.xyz_max[2] + 2 * voi.vox_width).detach().cpu().item(),
+                    (voi.xyz_min[2] - 2 * voi.vox_width[2]).detach().cpu().item(),
+                    (voi.xyz_max[2] + 2 * voi.vox_width[2]).detach().cpu().item(),
                 ),
                 "extent_x": (voi.xyz_min[0].detach().cpu().item(), voi.xyz_max[0].detach().cpu().item()),
                 "extent_y": (voi.xyz_min[2].detach().cpu().item(), voi.xyz_max[2].detach().cpu().item()),
@@ -857,12 +857,12 @@ class VoxelPlotting:
                 "x_label": "y",
                 "y_label": "z",
                 "x_lim": (
-                    (voi.xyz_min[1] - 2 * voi.vox_width).detach().cpu().item(),
-                    (voi.xyz_max[1] + 2 * voi.vox_width).detach().cpu().item(),
+                    (voi.xyz_min[1] - 2 * voi.vox_width[1]).detach().cpu().item(),
+                    (voi.xyz_max[1] + 2 * voi.vox_width[1]).detach().cpu().item(),
                 ),
                 "y_lim": (
-                    (voi.xyz_min[2] - 2 * voi.vox_width).detach().cpu().item(),
-                    (voi.xyz_max[2] + 2 * voi.vox_width).detach().cpu().item(),
+                    (voi.xyz_min[2] - 2 * voi.vox_width[2]).detach().cpu().item(),
+                    (voi.xyz_max[2] + 2 * voi.vox_width[2]).detach().cpu().item(),
                 ),
                 "extent_x": (voi.xyz_min[1].detach().cpu().item(), voi.xyz_max[1].detach().cpu().item()),
                 "extent_y": (voi.xyz_min[2].detach().cpu().item(), voi.xyz_max[2].detach().cpu().item()),
@@ -937,7 +937,7 @@ class VoxelPlotting:
 
         if voi is None:
             nx, ny, nz = data_3D.size() if isinstance(data_3D, Tensor) else data_3D[0].size()
-            voi = Volume(position=(0.0, 0.0, 0.0), dimension=(nx, ny, nz), voxel_width=1)
+            voi = Volume(position=(0.0, 0.0, 0.0), dimension=(nx, ny, nz), voxel_width=(1, 1, 1))
 
         if dim not in {0, 1, 2}:
             raise ValueError(f"Invalid dimension {dim}. Must be one of 0, 1, or 2.")

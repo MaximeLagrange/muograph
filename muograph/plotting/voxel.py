@@ -696,7 +696,7 @@ class VoxelPlotting:
 
         # Set title
         fig.suptitle(
-            fig_suptitle + f"\nvoxel size = {voi.vox_width} {d_unit}",
+            fig_suptitle + f"\nvoxel size = {tuple(voi.vox_width.detach().cpu().numpy())} {d_unit}",
             x=0.58,
             y=1,
             fontweight="bold",

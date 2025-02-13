@@ -101,6 +101,7 @@ class Tracking(AbsSave):
                     directory=self.output_dir,
                     filename=filename,
                 )
+
         elif tracks_hdf5 is not None:
             self.hits = None
             self.load_attr(attributes=self._vars_to_save, filename=tracks_hdf5)
@@ -132,6 +133,31 @@ class Tracking(AbsSave):
 
     @staticmethod
     def get_tracks_points_from_hits(hits: Tensor, chunk_size: int = 200_000) -> Tuple[Tensor, Tensor]:
+        r"""Compute muon tracks and points based on the number of the number of detection planes.
+
+        Args:
+            hits (Tensor): The hits data with shape (3, n_plane, mu).
+            chunk_size (int, optional): Size of chunks for processing in case n_mu is very large. Defaults to 200_000.
+
+        Raises:
+            ValueError: If there are less than 2 hits per event, cannot proceed to tracking.
+
+        Returns:
+            Tuple[Tensor, Tensor]: The points and tracks tensors
+            with respective size (mu, 3).
+        """
+
+        n_panels = hits.size()[1]
+
+        if n_panels > 2:
+            return Tracking.get_tracks_points_from_multi_hits(hits=hits, chunk_size=chunk_size)
+        elif n_panels == 2:
+            return Tracking.get_tracks_points_from_two_hits(hits=hits)
+        else:
+            raise ValueError("Hits have less than 2 hits per event, cannot proceed to tracking.")
+
+    @staticmethod
+    def get_tracks_points_from_multi_hits(hits: Tensor, chunk_size: int = 200_000) -> Tuple[Tensor, Tensor]:
         r"""
         The muon hits on detector planes are plugged into a linear fit
         to compute a track T(tx, ty, tz) and a point on that track P(px, py, pz).
@@ -175,6 +201,25 @@ class Tracking(AbsSave):
 
         tracks[:, 2] = torch.where(tracks[:, 2] > 0, -tracks[:, 2], tracks[:, 2])
         return tracks, points
+
+    @staticmethod
+    def get_tracks_points_from_two_hits(hits: Tensor) -> Tuple[Tensor, Tensor]:
+        r"""
+        The muon hits on detector planes are used
+        to compute a track T(tx, ty, tz) and a point on that track P(px, py, pz).
+
+        Args:
+            - hits (Tensor): The hits data with shape (3, n_plane, mu).
+
+        Returns:
+            - tracks, points (Tuple[Tensor, Tensor]): The points and tracks tensors
+            with respective size (mu, 3).
+        """
+
+        points = torch.mean(hits, dim=1)
+        tracks = (hits[:, -1] - hits[:, 0]) / torch.norm(hits[:, -1] - hits[:, 0], dim=0, keepdim=True)
+
+        return tracks.T, points.T
 
     @staticmethod
     def get_theta_from_tracks(tracks: Tensor) -> Tensor:

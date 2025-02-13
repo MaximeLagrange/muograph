@@ -309,10 +309,16 @@ def plot_hist(
     )
 
     fig, ax = plt.subplots()
-    if isinstance(data_1D, Tensor):
-        data_1D.detach().cpu().detach().numpy()
 
-    sns.histplot(data=data_1D, alpha=0.4, bins=n_bins, ax=ax, log_scale=(logx, logy), color="blue", binrange=range)
+    sns.histplot(
+        data=data_1D.detach().cpu().detach().numpy() if isinstance(data_1D, Tensor) else data_1D,
+        alpha=0.4,
+        bins=n_bins,
+        ax=ax,
+        log_scale=(logx, logy),
+        color="blue",
+        binrange=range,
+    )
 
     xlabel = "x" if xlabel is None else xlabel
     ylabel = "frequency [a.u]" if ylabel is None else ylabel

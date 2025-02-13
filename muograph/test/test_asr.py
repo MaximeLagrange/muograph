@@ -11,7 +11,7 @@ import math
 
 # Test data file path
 TEST_HIT_FILE = os.path.dirname(__file__) + "/../data/iron_barrel/barrel_and_cubes_scattering.csv"
-VOI = Volume(position=(0, 0, -1200), dimension=(1000, 600, 600), voxel_width=50)
+VOI = Volume(position=(0, 0, -1200), dimension=(1000, 600, 600), voxel_width=(50, 100, 50))
 OUPUT_DIR = str(Path(muograph_path) / "../output_test/")
 
 

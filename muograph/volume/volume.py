@@ -21,7 +21,7 @@ class Volume:
         self,
         position: Tuple[float, float, float],
         dimension: Tuple[float, float, float],
-        voxel_width: float = 10.0,
+        voxel_width: Tuple[float, float, float] = (10.0, 10.0, 10.0),
     ) -> None:
         """
         Initialize the Volume object.
@@ -38,13 +38,17 @@ class Volume:
         self.dxyz = torch.tensor(dimension, dtype=torch.float32, device=DEVICE)
         self.xyz_min = self.xyz - self.dxyz / 2
         self.xyz_max = self.xyz + self.dxyz / 2
-        self.vox_width = voxel_width
+        self.vox_width = torch.tensor(voxel_width, device=DEVICE)
 
     def __repr__(self) -> str:
-        return f"Volume of interest at x,y,z = " f"{self.xyz[0]:.2f},{self.xyz[1]:.2f},{self.xyz[2]:.2f}, " f"voxel size = {self.vox_width:.2f} mm"
+        return (
+            f"Volume of interest at x,y,z = "
+            f"{self.xyz[0]:.2f},{self.xyz[1]:.2f},{self.xyz[2]:.2f}, "
+            f"voxel size = {self.vox_width[0]:.2f},{self.vox_width[1]:.2f},{self.vox_width[2]:.2f} mm"
+        )
 
     @staticmethod
-    def compute_n_voxel(vox_width: float, dxyz: Tensor) -> Tuple[int, int, int]:
+    def compute_n_voxel(vox_width: Tensor, dxyz: Tensor) -> Tuple[int, int, int]:
         r"""
         Calculate the number of voxels along each axis.
 
@@ -71,7 +75,7 @@ class Volume:
     def generate_voxels(
         xyz_min: Tensor,
         xyz_max: Tensor,
-        vox_width: float,
+        vox_width: Tensor,
         n_vox_xyz: Tuple[int, int, int],
     ) -> Tuple[Tensor, Tensor]:
         """
@@ -88,20 +92,20 @@ class Volume:
         """
         # Compute voxel centers for each axis
         xs = torch.linspace(
-            xyz_min[0] + vox_width / 2,
-            xyz_max[0] - vox_width / 2,
+            xyz_min[0] + vox_width[0] / 2,
+            xyz_max[0] - vox_width[0] / 2,
             n_vox_xyz[0],
             device=DEVICE,
         )
         ys = torch.linspace(
-            xyz_min[1] + vox_width / 2,
-            xyz_max[1] - vox_width / 2,
+            xyz_min[1] + vox_width[1] / 2,
+            xyz_max[1] - vox_width[1] / 2,
             n_vox_xyz[1],
             device=DEVICE,
         )
         zs = torch.linspace(
-            xyz_min[2] + vox_width / 2,
-            xyz_max[2] - vox_width / 2,
+            xyz_min[2] + vox_width[2] / 2,
+            xyz_max[2] - vox_width[2] / 2,
             n_vox_xyz[2],
             device=DEVICE,
         )

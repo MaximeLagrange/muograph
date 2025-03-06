@@ -78,6 +78,8 @@ class POCA(AbsSave, VoxelPlotting):
         AbsSave.__init__(self, output_dir=output_dir)
         VoxelPlotting.__init__(self, voi)
 
+        self.filename = filename if filename else "poca"
+
         if tracking is None and poca_file is None:
             raise ValueError("Provide either poca.hdf5 file of TrackingMST instance.")
 
@@ -95,12 +97,11 @@ class POCA(AbsSave, VoxelPlotting):
 
             # Save attributes to hdf5
             if output_dir is not None:
-                self.save_attr(self._vars_to_save, self.output_dir, filename=self.filename if self.filename else "poca")  # type: ignore
+                self.save_attr(self._vars_to_save, self.output_dir, filename=self.filename)
 
         # Load poca attributes from hdf5 if poca_file is provided
         elif tracking is None and poca_file is not None:
             self.load_attr(self._vars_to_load, poca_file)
-        self.filename = filename
 
     def __repr__(self) -> str:
         return f"Collection of {self.n_mu} POCA locations."

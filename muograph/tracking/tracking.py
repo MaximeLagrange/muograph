@@ -743,7 +743,7 @@ class Tracking(AbsSave):
         The angular error between the generated and reconstructed tracks.
         """
         if self._angular_error is None:
-            if self.hits.spatial_res.sum() == 0.0:
+            if self.hits is None or self.hits.spatial_res.sum() == 0.0:
                 self._angular_error = torch.zeros_like(self.theta)
             else:
                 self._angular_error = self.get_angular_error(self.theta)

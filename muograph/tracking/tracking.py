@@ -265,8 +265,8 @@ class Tracking(AbsSave):
         r"""
         Computes the tracks efficiency.
         """
-
-        tracks_eff = torch.where(hits_eff.sum(dim=0) == 3, 1, 0)
+        n_expected_hit_per_track = hits_eff.size()[0]
+        tracks_eff = torch.where(hits_eff.sum(dim=0) == n_expected_hit_per_track, 1, 0)
         return tracks_eff
 
     @staticmethod

@@ -44,6 +44,7 @@ class BCA(POCA, AbsVoxelInferer):
         voi: Volume,
         tracking: TrackingMST,
         output_dir: Optional[str] = None,
+        filename: Optional[str] = None,
     ) -> None:
         r"""
         Initializes the BCA object with an instance of the TrackingMST class.

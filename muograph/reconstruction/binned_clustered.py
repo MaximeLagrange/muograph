@@ -44,6 +44,7 @@ class BCA(POCA, AbsVoxelInferer):
         voi: Volume,
         tracking: TrackingMST,
         output_dir: Optional[str] = None,
+        filename: Optional[str] = None,
     ) -> None:
         r"""
         Initializes the BCA object with an instance of the TrackingMST class.
@@ -56,7 +57,7 @@ class BCA(POCA, AbsVoxelInferer):
             and `hit_per_voxel` attributes in a hdf5 file.
         """
         AbsVoxelInferer.__init__(self, voi=voi, tracking=tracking)
-        POCA.__init__(self, tracking=tracking, voi=voi, output_dir=output_dir)
+        POCA.__init__(self, tracking=tracking, voi=voi, output_dir=output_dir, filename = filename)
 
         self.bca_indices: Tensor = deepcopy(self.poca_indices)
         self.bca_poca_points: Tensor = deepcopy(self.poca_points)

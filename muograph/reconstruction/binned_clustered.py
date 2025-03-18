@@ -12,6 +12,7 @@ from muograph.reconstruction.poca import POCA
 from muograph.volume.volume import Volume
 from muograph.reconstruction.voxel_inferer import AbsVoxelInferer
 
+
 value_type = Union[float, partial, Tuple[float, float], bool, int]
 bca_params_type = Dict[str, value_type]
 
@@ -57,7 +58,7 @@ class BCA(POCA, AbsVoxelInferer):
             and `hit_per_voxel` attributes in a hdf5 file.
         """
         AbsVoxelInferer.__init__(self, voi=voi, tracking=tracking)
-        POCA.__init__(self, tracking=tracking, voi=voi, output_dir=output_dir, filename = filename)
+        POCA.__init__(self, tracking=tracking, voi=voi, output_dir=output_dir, filename=filename)
 
         self.bca_indices: Tensor = deepcopy(self.poca_indices)
         self.bca_poca_points: Tensor = deepcopy(self.poca_points)

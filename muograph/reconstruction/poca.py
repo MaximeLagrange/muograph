@@ -36,6 +36,7 @@ class POCA(AbsSave, VoxelPlotting):
     _parallel_mask: Optional[Tensor] = None  # (mu)
     _poca_points: Optional[Tensor] = None  # (mu, 3)
     _n_poca_per_vox: Optional[Tensor] = None  # (nx, ny, nz)
+    _poca_points_per_vox: Optional[Tensor] = None  # (nx, ny, nz)
     _poca_indices: Optional[Tensor] = None  # (mu, 3)
     _mask_in_voi: Optional[Tensor] = None  # (mu)
 
@@ -44,12 +45,14 @@ class POCA(AbsSave, VoxelPlotting):
     _vars_to_save = [
         "poca_points",
         "n_poca_per_vox",
+        "poca_points_per_vox",
         "poca_indices",
     ]
 
     _vars_to_load = [
         "poca_points",
         "n_poca_per_vox",
+        "poca_points_per_vox",
         "poca_indices",
     ]
 
@@ -296,6 +299,41 @@ class POCA(AbsSave, VoxelPlotting):
         return n_poca_per_vox
 
     @staticmethod
+    def compute_poca_points_per_vox(poca_points: Tensor, voi: Volume) -> Tensor:
+        """
+        Computes the POCA points per voxel, given a voxelized volume VOI.
+
+        Arguments:
+         - voi:VolumeIntrest, an instance of the VOI class.
+         - poca_points: Tensor containing the poca points location, with size (n_mu, 3).
+
+        Returns:
+         - poca_points_per_vox: torch.tensor(dtype=int64) with size (nvox_x,nvox_y,nvox_z),
+         the number of poca points per voxel.
+        """
+
+        poca_points_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=dtype_n)
+
+        for i in range(voi.n_vox_xyz[2]):
+            z_min = voi.xyz_min[2] + i * voi.vox_width[2]
+            z_max = z_min + voi.vox_width[2]
+            mask_slice_z = (poca_points[:, 2] >= z_min) & ((poca_points[:, 2] <= z_max))
+
+            for j in range(voi.n_vox_xyz[1]):
+                y_min = voi.xyz_min[1] + j * voi.vox_width[1]
+                y_max = y_min + voi.vox_width[1]
+                mask_slice_y = (poca_points[mask_slice_z, 1] >= y_min) & ((poca_points[mask_slice_z, 1] <= y_max))
+
+                for k in range(voi.n_vox_xyz[0]):
+                    x_min = voi.xyz_min[0] + k * voi.vox_width[0]
+                    x_max = x_min + voi.vox_width[0]
+                    mask_slice_x = (poca_points[mask_slice_y, 0] >= x_min) & ((poca_points[mask_slice_y, 0] <= x_max))
+
+                    poca_points_per_vox[i, j, k] = mask_slice_x
+
+        return poca_points_per_vox
+
+    @staticmethod
     def compute_mask_in_voi(poca_points: Tensor, voi: Volume) -> Tensor:
         """
         Compute the mask of POCA points located within the volumne of interest.
@@ -453,6 +491,18 @@ class POCA(AbsSave, VoxelPlotting):
     def n_poca_per_vox(self, value: Tensor) -> None:
         r"""Set the number of POCA points per voxel."""
         self._n_poca_per_vox = value
+
+    @property
+    def poca_points_per_vox(self) -> Tensor:
+        r"""Tensor: The POCA points per voxel."""
+        if self._poca_points_per_vox is None:
+            self._poca_points_per_vox = self.compute_poca_points_per_vox(poca_points=self.poca_points, voi=self.voi)
+        return self._poca_points_per_vox
+
+    @poca_points_per_vox.setter
+    def poca_points_per_vox(self, value: Tensor) -> None:
+        r"""Set the POCA points per voxel."""
+        self._poca_points_per_vox = value
 
     @property
     def poca_indices(self) -> Tensor:

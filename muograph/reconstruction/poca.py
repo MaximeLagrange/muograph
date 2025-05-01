@@ -322,19 +322,21 @@ class POCA(AbsSave, VoxelPlotting):
             for j in range(voi.n_vox_xyz[1]):
                 y_min = voi.xyz_min[1] + j * voi.vox_width[1]
                 y_max = y_min + voi.vox_width[1]
-                mask_slice_y = (poca_points[mask_slice_z, 1] >= y_min) & ((poca_points[mask_slice_z, 1] <= y_max))
+                mask_slice_y = (poca_points[:, 1] >= y_min) & ((poca_points[:, 1] <= y_max))
 
                 for k in range(voi.n_vox_xyz[0]):
                     x_min = voi.xyz_min[0] + k * voi.vox_width[0]
                     x_max = x_min + voi.vox_width[0]
-                    mask_slice_x = (poca_points[mask_slice_y, 0] >= x_min) & ((poca_points[mask_slice_y, 0] <= x_max))
+                    mask_slice_x = (poca_points[:, 0] >= x_min) & ((poca_points[:, 0] <= x_max))
+
+                    total_mask = [mask_slice_z & mask_slice_y & mask_slice_x]
 
                     dtheta_in_voxel = []
-                    for point in mask_slice_x:
+                    for point in total_mask:
                         index = (poca_points == point).nonzero(as_tuple=True)[0]
                         dtheta_in_voxel.append(self.tracks.dtheta[index])
 
-                    dtheta_mean_per_vox[i, j, k] = mean(dtheta_in_voxel)
+                        dtheta_mean_per_vox[i, j, k] = mean(dtheta_in_voxel)
 
         return dtheta_mean_per_vox
 

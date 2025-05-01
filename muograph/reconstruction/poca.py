@@ -8,7 +8,7 @@ from fastprogress import progress_bar
 import numpy as np
 import seaborn as sns
 import math
-
+from statistics import mean
 from muograph.utils.save import AbsSave
 from muograph.utils.device import DEVICE
 from muograph.utils.datatype import dtype_track, dtype_n
@@ -36,7 +36,7 @@ class POCA(AbsSave, VoxelPlotting):
     _parallel_mask: Optional[Tensor] = None  # (mu)
     _poca_points: Optional[Tensor] = None  # (mu, 3)
     _n_poca_per_vox: Optional[Tensor] = None  # (nx, ny, nz)
-    _poca_points_per_vox: Optional[Tensor] = None  # (nx, ny, nz)
+    _dtheta_mean_per_vox: Optional[Tensor] = None  # (nx, ny, nz)
     _poca_indices: Optional[Tensor] = None  # (mu, 3)
     _mask_in_voi: Optional[Tensor] = None  # (mu)
 
@@ -45,14 +45,14 @@ class POCA(AbsSave, VoxelPlotting):
     _vars_to_save = [
         "poca_points",
         "n_poca_per_vox",
-        "poca_points_per_vox",
+        "dtheta_mean_per_vox",
         "poca_indices",
     ]
 
     _vars_to_load = [
         "poca_points",
         "n_poca_per_vox",
-        "poca_points_per_vox",
+        "dtheta_mean_per_vox",
         "poca_indices",
     ]
 
@@ -299,7 +299,7 @@ class POCA(AbsSave, VoxelPlotting):
         return n_poca_per_vox
 
     @staticmethod
-    def compute_poca_points_per_vox(poca_points: Tensor, voi: Volume) -> Tensor:
+    def compute_dtheta_mean_per_vox(self, poca_points: Tensor, voi: Volume) -> Tensor:
         """
         Computes the POCA points per voxel, given a voxelized volume VOI.
 
@@ -308,11 +308,11 @@ class POCA(AbsSave, VoxelPlotting):
          - poca_points: Tensor containing the poca points location, with size (n_mu, 3).
 
         Returns:
-         - poca_points_per_vox: torch.tensor(dtype=int64) with size (nvox_x,nvox_y,nvox_z),
-         the number of poca points per voxel.
+         - dtheta_mean_per_vox: torch.tensor(dtype=int64) with size (nvox_x,nvox_y,nvox_z),
+         the average scattering angle per voxel.
         """
 
-        poca_points_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=dtype_n)
+        dtheta_mean_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=dtype_n)
 
         for i in range(voi.n_vox_xyz[2]):
             z_min = voi.xyz_min[2] + i * voi.vox_width[2]
@@ -329,9 +329,14 @@ class POCA(AbsSave, VoxelPlotting):
                     x_max = x_min + voi.vox_width[0]
                     mask_slice_x = (poca_points[mask_slice_y, 0] >= x_min) & ((poca_points[mask_slice_y, 0] <= x_max))
 
-                    poca_points_per_vox[i, j, k] = mask_slice_x
+                    dtheta_in_voxel = []
+                    for point in mask_slice_x:
+                        index = (poca_points == point).nonzero(as_tuple=True)[0]
+                        dtheta_in_voxel.append(self.tracks.dtheta[index])
 
-        return poca_points_per_vox
+                    dtheta_mean_per_vox[i, j, k] = mean(dtheta_in_voxel)
+
+        return dtheta_mean_per_vox
 
     @staticmethod
     def compute_mask_in_voi(poca_points: Tensor, voi: Volume) -> Tensor:
@@ -493,16 +498,16 @@ class POCA(AbsSave, VoxelPlotting):
         self._n_poca_per_vox = value
 
     @property
-    def poca_points_per_vox(self) -> Tensor:
+    def dtheta_mean_per_vox(self) -> Tensor:
         r"""Tensor: The POCA points per voxel."""
-        if self._poca_points_per_vox is None:
-            self._poca_points_per_vox = self.compute_poca_points_per_vox(poca_points=self.poca_points, voi=self.voi)
-        return self._poca_points_per_vox
+        if self._dtheta_mean_per_vox is None:
+            self._dtheta_mean_per_vox = self.compute_dtheta_mean_per_vox(self, poca_points=self.poca_points, voi=self.voi)
+        return self._dtheta_mean_per_vox
 
-    @poca_points_per_vox.setter
-    def poca_points_per_vox(self, value: Tensor) -> None:
+    @dtheta_mean_per_vox.setter
+    def dtheta_mean_per_vox(self, value: Tensor) -> None:
         r"""Set the POCA points per voxel."""
-        self._poca_points_per_vox = value
+        self._dtheta_mean_per_vox = value
 
     @property
     def poca_indices(self) -> Tensor:

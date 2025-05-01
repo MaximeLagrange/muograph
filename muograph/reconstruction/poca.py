@@ -330,10 +330,10 @@ class POCA(AbsSave, VoxelPlotting):
                     mask_slice_x = (poca_points[:, 0] >= x_min) & ((poca_points[:, 0] <= x_max))
 
                     total_mask = [mask_slice_z & mask_slice_y & mask_slice_x]
-
+                    print(total_mask)
                     dtheta_in_voxel = []
                     for point in total_mask:
-                        index = (poca_points == point).nonzero(as_tuple=True)[0]
+                        index = (poca_points[0] == point).nonzero(as_tuple=True)[0]
                         dtheta_in_voxel.append(self.tracks.dtheta[index])
 
                         dtheta_mean_per_vox[i, j, k] = mean(dtheta_in_voxel)

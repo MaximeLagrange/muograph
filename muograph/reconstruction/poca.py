@@ -333,10 +333,13 @@ class POCA(AbsSave, VoxelPlotting):
 
                     total_mask = mask_slice_z & mask_slice_y & mask_slice_x
                     poca_points_where = torch.where(total_mask)
+                    print('pocawhere',poca_points_where)
                     dtheta_in_voxel = []
                     for index in poca_points_where[0]:
                         dtheta_in_voxel.append(self.tracks.dtheta[index])
-
+                        print(index)
+                        print('dtheta',dtehta_in_voxel)
+                        
                     dtheta_mean_per_vox[i, j, k] = mean(dtheta_in_voxel)
 
         return dtheta_mean_per_vox

@@ -8,7 +8,7 @@ from fastprogress import progress_bar
 import numpy as np
 import seaborn as sns
 import math
-from statistics import mean
+
 from muograph.utils.save import AbsSave
 from muograph.utils.device import DEVICE
 from muograph.utils.datatype import dtype_track, dtype_n
@@ -311,6 +311,8 @@ class POCA(AbsSave, VoxelPlotting):
          - dtheta_mean_per_vox: torch.tensor(dtype=int64) with size (nvox_x,nvox_y,nvox_z),
          the average scattering angle per voxel.
         """
+        from statistics import mean
+        from torch import where
 
         dtheta_mean_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=dtype_n)
 
@@ -331,13 +333,12 @@ class POCA(AbsSave, VoxelPlotting):
                     print("maskslicex", mask_slice_x)
 
                     total_mask = [mask_slice_z & mask_slice_y & mask_slice_x]
-                    poca_points_masked = poca_points[total_mask]
+                    poca_points_where = torch.where(total_mask)
                     dtheta_in_voxel = []
-                    for point in poca_points_masked[0]:
-                        index = (poca_points[0] == point).nonzero(as_tuple=True)[0]
+                    for index in poca_points_where[0]:
                         dtheta_in_voxel.append(self.tracks.dtheta[index])
 
-                        dtheta_mean_per_vox[i, j, k] = mean(dtheta_in_voxel)
+                    dtheta_mean_per_vox[i, j, k] = mean(dtheta_in_voxel)
 
         return dtheta_mean_per_vox
 

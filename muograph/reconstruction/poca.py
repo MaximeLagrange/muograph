@@ -328,13 +328,12 @@ class POCA(AbsSave, VoxelPlotting):
                     x_min = voi.xyz_min[0] + k * voi.vox_width[0]
                     x_max = x_min + voi.vox_width[0]
                     mask_slice_x = (poca_points[:, 0] >= x_min) & ((poca_points[:, 0] <= x_max))
-                    print('maskslicex', mask_slice_x)
+                    print("maskslicex", mask_slice_x)
 
                     total_mask = [mask_slice_z & mask_slice_y & mask_slice_x]
-                    poca_points_masked = poca_points[total_mask] 
-                    print(poca_points_masked)
+                    poca_points_masked = poca_points[total_mask]
                     dtheta_in_voxel = []
-                    for point in total_mask:
+                    for point in poca_points_masked[0]:
                         index = (poca_points[0] == point).nonzero(as_tuple=True)[0]
                         dtheta_in_voxel.append(self.tracks.dtheta[index])
 

@@ -317,6 +317,7 @@ class POCA(AbsSave, VoxelPlotting):
 
         dtheta_mean_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=dtype_n)
 
+        print('poca points size', poca_points.shape)
         for i in range(voi.n_vox_xyz[2]):
             z_min = voi.xyz_min[2] + i * voi.vox_width[2]
             z_max = z_min + voi.vox_width[2]

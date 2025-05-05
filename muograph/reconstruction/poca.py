@@ -342,7 +342,7 @@ class POCA(AbsSave, VoxelPlotting):
                         dtheta_in_voxel.append(int(self.tracks.dtheta[index]))
                         
 
-                    dtheta_mean_per_vox[i, j, k] = statistics.mean(dtheta_in_voxel)
+                    dtheta_mean_per_vox[i, j, k] = mean(dtheta_in_voxel)
 
         print(dtheta_mean_per_vox)
         print(dtheta_mean_per_vox.shape)

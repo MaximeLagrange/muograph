@@ -316,37 +316,33 @@ class POCA(AbsSave, VoxelPlotting):
         from torch import unique
 
         dtheta_mean_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=dtype_n)
-        print('shape',dtheta_mean_per_vox.shape)
-
+        print("shape", dtheta_mean_per_vox.shape)
 
         for i in range(voi.n_vox_xyz[2]):
             z_min = voi.xyz_min[2] + i * voi.vox_width[2]
             z_max = z_min + voi.vox_width[2]
             mask_slice_z = (poca_points[:, 2] >= z_min) & ((poca_points[:, 2] <= z_max))
 
-
             for j in range(voi.n_vox_xyz[1]):
                 y_min = voi.xyz_min[1] + j * voi.vox_width[1]
                 y_max = y_min + voi.vox_width[1]
                 mask_slice_y = (poca_points[:, 1] >= y_min) & ((poca_points[:, 1] <= y_max))
 
-
                 for k in range(voi.n_vox_xyz[0]):
                     x_min = voi.xyz_min[0] + k * voi.vox_width[0]
                     x_max = x_min + voi.vox_width[0]
                     mask_slice_x = (poca_points[:, 0] >= x_min) & ((poca_points[:, 0] <= x_max))
-                    
+
                     poca_points_where = torch.where(mask_slice_x)
 
                     dtheta_in_voxel = []
                     for index in poca_points_where[0]:
                         dtheta_in_voxel.append(int(self.tracks.dtheta[index]))
-                        
 
                     dtheta_mean_per_vox[k, j, i] = mean(dtheta_in_voxel)
 
-        print(dtheta_mean_per_vox)
-        print(dtheta_mean_per_vox.shape)
+        print("dtheta", dtheta_mean_per_vox)
+        print("dtheta shape", dtheta_mean_per_vox.shape)
         return dtheta_mean_per_vox
 
     @staticmethod

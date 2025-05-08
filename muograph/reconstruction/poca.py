@@ -333,7 +333,10 @@ class POCA(AbsSave, VoxelPlotting):
                     x_max = x_min + voi.vox_width[0]
                     mask_slice_x = (poca_points[:, 0] >= x_min) & ((poca_points[:, 0] <= x_max))
 
-                    poca_points_where = torch.where(mask_slice_x)
+                    part_mask = mask_slice_z.logical_and(mask_slice_y)
+                    total_mask = part_mask.logical_and(mask_slice_x)
+
+                    poca_points_where = torch.where(total_mask)
 
                     dtheta_in_voxel = []
                     for index in poca_points_where[0]:

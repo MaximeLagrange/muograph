@@ -346,7 +346,7 @@ class POCA(AbsSave, VoxelPlotting):
                     print('total_mask', torch.unique(total_mask),total_mask.shape)
 
                     poca_points_where = torch.where(total_mask)
-                    if poca_points_where is None:
+                    if poca_points_where is not None:
 
                         dtheta_in_voxel = []
                         for index in poca_points_where[0]:

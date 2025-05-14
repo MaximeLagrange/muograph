@@ -346,12 +346,13 @@ class POCA(AbsSave, VoxelPlotting):
                     print('total_mask', torch.unique(total_mask),total_mask.shape)
 
                     poca_points_where = torch.where(total_mask)
+                    if poca_points_where is None:
 
-                    dtheta_in_voxel = []
-                    for index in poca_points_where[0]:
-                        dtheta_in_voxel.append(int(self.tracks.dtheta[index]))
+                        dtheta_in_voxel = []
+                        for index in poca_points_where[0]:
+                            dtheta_in_voxel.append(int(self.tracks.dtheta[index]))
 
-                    dtheta_mean_per_vox[k, j, i] = mean(dtheta_in_voxel)
+                        dtheta_mean_per_vox[k, j, i] = mean(dtheta_in_voxel)
 
         print("dtheta", dtheta_mean_per_vox)
         print("dtheta shape", dtheta_mean_per_vox.shape)

@@ -299,7 +299,7 @@ class POCA(AbsSave, VoxelPlotting):
         return n_poca_per_vox
 
     @staticmethod
-    def compute_dtheta_mean_per_vox(self, poca_points: Tensor, voi: Volume) -> Tensor:
+    def compute_dtheta_mean_per_vox(self, poca_indices: Tensor, voi: Volume) -> Tensor:
         """
         Computes the POCA points per voxel, given a voxelized volume VOI.
 
@@ -318,65 +318,57 @@ class POCA(AbsSave, VoxelPlotting):
         dtheta_mean_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=dtype_n)
         print("shape", dtheta_mean_per_vox.shape)
 
-
         for i in range(voi.n_vox_xyz[2]):
-            z_min = voi.xyz_min[2] + i * voi.vox_width[2]
-            z_max = z_min + voi.vox_width[2]
-            mask_slice_z = (poca_points[:, 2] >= z_min) & ((poca_points[:, 2] <= z_max))
-            print('mask_z', torch.unique(mask_slice_z), mask_slice_z.shape)
-            print(mask_slice_z[:100])
-            poca_where_z = torch.where(mask_slice_z)
-            print('wherez',poca_where_z[:50])
+            #            z_min = voi.xyz_min[2] + i * voi.vox_width[2]
+            #            z_max = z_min + voi.vox_width[2]
+            #            mask_slice_z = (poca_points[:, 2] >= z_min) & ((poca_points[:, 2] <= z_max))
+            #            print('mask_z', torch.unique(mask_slice_z), mask_slice_z.shape)
+            #            print(mask_slice_z[:100])
+            #            poca_where_z = torch.where(mask_slice_z)
+            #            print('wherez',poca_where_z[:50])
 
-
-#            mask_slice_z = (poca_indices[:,2] >= i) & ((poca_indices[:,2]<=(i+1)))
-
-    
+            mask_slice_z = (poca_indices[:, 2] >= i) & ((poca_indices[:, 2] <= (i + 1)))
 
             for j in range(voi.n_vox_xyz[1]):
-                y_min = voi.xyz_min[1] + j * voi.vox_width[1]
-                y_max = y_min + voi.vox_width[1]
-                mask_slice_y = (poca_points[:, 1] >= y_min) & ((poca_points[:, 1] <= y_max))
+                #                y_min = voi.xyz_min[1] + j * voi.vox_width[1]
+                #                y_max = y_min + voi.vox_width[1]
+                #                mask_slice_y = (poca_points[:, 1] >= y_min) & ((poca_points[:, 1] <= y_max))
 
-                print('mask_y',torch.unique(mask_slice_y),mask_slice_y.shape)
-                print(mask_slice_y[:100])
-                poca_where_y = torch.where(mask_slice_y)
-                print('wherey',poca_where_y[:50])
+                #                print('mask_y',torch.unique(mask_slice_y),mask_slice_y.shape)
+                #                print(mask_slice_y[:100])
+                #                poca_where_y = torch.where(mask_slice_y)
+                #                print('wherey',poca_where_y[:50])
 
-
-
+                mask_slice_y = (poca_indices[:, 1] >= j) & ((poca_indices[:, 1] <= (j + 1)))
 
                 for k in range(voi.n_vox_xyz[0]):
-                    x_min = voi.xyz_min[0] + k * voi.vox_width[0]
-                    x_max = x_min + voi.vox_width[0]
-                    mask_slice_x = (poca_points[:, 0] >= x_min) & ((poca_points[:, 0] <= x_max))
-                    print('mask_x',torch.unique(mask_slice_x),mask_slice_x.shape)
-                    print(mask_slice_x[:100])
-                    poca_where_x = torch.where(mask_slice_x)
-                    print('wherex',poca_where_x[:50])
+                    #                    x_min = voi.xyz_min[0] + k * voi.vox_width[0]
+                    #                    x_max = x_min + voi.vox_width[0]
+                    #                    mask_slice_x = (poca_points[:, 0] >= x_min) & ((poca_points[:, 0] <= x_max))
+                    #                    print('mask_x',torch.unique(mask_slice_x),mask_slice_x.shape)
+                    #                    print(mask_slice_x[:100])
+                    #                    poca_where_x = torch.where(mask_slice_x)
+                    #                    print('wherex',poca_where_x[:50])
 
-
+                    mask_slice_x = (poca_indices[:, 0] >= k) & ((poca_indices[:, 0] <= (k + 1)))
 
                     part_mask = (mask_slice_x) & (mask_slice_z)
-                    print('part_mask', torch.unique(part_mask),part_mask.shape)
+                    print("part_mask", torch.unique(part_mask), part_mask.shape)
                     print(part_mask[:100])
                     poca_where_part = torch.where(part_mask)
-                    print('wherepart',poca_where_part[:50])
-
+                    print("wherepart", poca_where_part[:50])
 
                     total_mask = (part_mask) & (mask_slice_y)
-                    print('total_mask', torch.unique(total_mask),total_mask.shape)
+                    print("total_mask", torch.unique(total_mask), total_mask.shape)
                     poca_where_total = torch.where(total_mask)
-                    print('wheretotal', poca_where_total[:200])
-
+                    print("wheretotal", poca_where_total[:200])
 
                     poca_points_where = torch.where(total_mask)
 
                     print(total_mask[:100])
-                    print(k,j,i)
+                    print(k, j, i)
 
                     if poca_points_where is not None:
-
                         dtheta_in_voxel = []
                         for index in poca_points_where[0]:
                             dtheta_in_voxel.append(int(self.tracks.dtheta[index]))
@@ -550,7 +542,7 @@ class POCA(AbsSave, VoxelPlotting):
     def dtheta_mean_per_vox(self) -> Tensor:
         r"""Tensor: The POCA points per voxel."""
         if self._dtheta_mean_per_vox is None:
-            self._dtheta_mean_per_vox = self.compute_dtheta_mean_per_vox(self, poca_points=self.poca_points, voi=self.voi)
+            self._dtheta_mean_per_vox = self.compute_dtheta_mean_per_vox(self, poca_indices=self.poca_indices, voi=self.voi)
         return self._dtheta_mean_per_vox
 
     @dtheta_mean_per_vox.setter

@@ -378,9 +378,10 @@ class POCA(AbsSave, VoxelPlotting):
                     if poca_points_where is not None:
 
                         dtheta_in_voxel = []
-                        for index in poca_points_where:
+                        for index in poca_points_where[0]:
                             dtheta_in_voxel.append(int(self.tracks.dtheta[index]))
-
+                            print('index and dtheta', index, int(self.tracks.dtheta[index])
+                            print('whole list', dtheta_in_voxel)
                         dtheta_mean_per_vox[k, j, i] = mean(dtheta_in_voxel)
 
         print("dtheta", dtheta_mean_per_vox)

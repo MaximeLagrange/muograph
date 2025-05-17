@@ -323,6 +323,8 @@ class POCA(AbsSave, VoxelPlotting):
             z_min = voi.xyz_min[2] + i * voi.vox_width[2]
             z_max = z_min + voi.vox_width[2]
             mask_slice_z = (poca_points[:, 2] >= z_min) & ((poca_points[:, 2] <= z_max))
+            print('mask_z', torch.unique(mask_slice_z), mask_slice_z.shape)
+            print(mask_z[:20])
 
     
 
@@ -332,23 +334,30 @@ class POCA(AbsSave, VoxelPlotting):
                 mask_slice_y = (poca_points[:, 1] >= y_min) & ((poca_points[:, 1] <= y_max))
 
                 print('mask_y',torch.unique(mask_slice_y),mask_slice_y.shape)
-
+                print(mask_y[:20])
 
                 for k in range(voi.n_vox_xyz[0]):
                     x_min = voi.xyz_min[0] + k * voi.vox_width[0]
                     x_max = x_min + voi.vox_width[0]
                     mask_slice_x = (poca_points[:, 0] >= x_min) & ((poca_points[:, 0] <= x_max))
                     print('mask_x',torch.unique(mask_slice_x),mask_slice_x.shape)
+                    print(mask_x[:20])
+
+
+
 
                     part_mask = (mask_slice_x) & (mask_slice_z)
                     print('part_mask', torch.unique(part_mask),part_mask.shape)
-                    
+                    print(part_mask[:20])
+
+
                     total_mask = (part_mask) & (mask_slice_y)
                     print('total_mask', torch.unique(total_mask),total_mask.shape)
 
                     poca_points_where = torch.where(total_mask)
 
-
+                    print(total_mask[:20])
+                    print(k,j,i)
 
                     if poca_points_where is not None:
 

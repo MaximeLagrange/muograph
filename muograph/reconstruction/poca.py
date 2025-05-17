@@ -318,6 +318,7 @@ class POCA(AbsSave, VoxelPlotting):
         dtheta_mean_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=dtype_n)
         print("shape", dtheta_mean_per_vox.shape)
 
+
         for i in range(voi.n_vox_xyz[2]):
             z_min = voi.xyz_min[2] + i * voi.vox_width[2]
             z_max = z_min + voi.vox_width[2]
@@ -346,6 +347,11 @@ class POCA(AbsSave, VoxelPlotting):
                     print('total_mask', torch.unique(total_mask),total_mask.shape)
 
                     poca_points_where = torch.where(total_mask)
+
+                    poca_points_where_not = torch.where(total_mask is False)
+
+                    print('wherefalse', poca_points_where_not)
+
                     if poca_points_where is not None:
 
                         dtheta_in_voxel = []

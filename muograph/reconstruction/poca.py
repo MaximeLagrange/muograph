@@ -326,7 +326,7 @@ class POCA(AbsSave, VoxelPlotting):
             print('mask_z', torch.unique(mask_slice_z), mask_slice_z.shape)
             print(mask_slice_z[:100])
             poca_where_z = torch.where(mask_slice_z)
-            print('wherez',poca_where_z[:200])
+            print('wherez',poca_where_z[:-20])
 
 
 #            mask_slice_z = (poca_indices[:,2] >= i) & ((poca_indices[:,2]<=(i+1)))
@@ -341,7 +341,7 @@ class POCA(AbsSave, VoxelPlotting):
                 print('mask_y',torch.unique(mask_slice_y),mask_slice_y.shape)
                 print(mask_slice_y[:100])
                 poca_where_y = torch.where(mask_slice_y)
-                print('wherey',poca_where_y[:200])
+                print('wherey',poca_where_y[:-20])
 
 
 
@@ -353,7 +353,7 @@ class POCA(AbsSave, VoxelPlotting):
                     print('mask_x',torch.unique(mask_slice_x),mask_slice_x.shape)
                     print(mask_slice_x[:100])
                     poca_where_x = torch.where(mask_slice_x)
-                    print('wherex',poca_where_x[:200])
+                    print('wherex',poca_where_x[:-20])
 
 
 

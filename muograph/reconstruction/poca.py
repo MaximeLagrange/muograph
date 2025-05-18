@@ -374,6 +374,7 @@ class POCA(AbsSave, VoxelPlotting):
 
                     print(total_mask[:100])
                     print(k,j,i)
+                    print(poca_points_where[0].size(),'thissss')
 
                     if len(poca_points_where[0].size()) != 0:
 

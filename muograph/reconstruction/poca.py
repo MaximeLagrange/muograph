@@ -375,7 +375,7 @@ class POCA(AbsSave, VoxelPlotting):
                     print(total_mask[:100])
                     print(k,j,i)
 
-                    if poca_points_where[0][0] is not None:
+                    if poca_points_where[0] is not None:
 
                         dtheta_in_voxel = []
                         for index in poca_points_where[0]:

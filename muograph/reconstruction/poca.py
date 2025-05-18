@@ -376,7 +376,7 @@ class POCA(AbsSave, VoxelPlotting):
                     print(k,j,i)
                     print(poca_points_where[0].size(),'thissss')
 
-                    if len(poca_points_where[0].size()) != 0:
+                    if poca_points_where[0].size() != torch.Size([0]):
 
                         dtheta_in_voxel = []
                         for index in poca_points_where[0]:

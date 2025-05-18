@@ -387,6 +387,7 @@ class POCA(AbsSave, VoxelPlotting):
                         dtheta_mean_per_vox[k, j, i] = mean(dtheta_in_voxel)
 
         print("dtheta", dtheta_mean_per_vox)
+        print('unique dtheta', torch.unique(dtheta_mean_per_vox))
         print("dtheta shape", dtheta_mean_per_vox.shape)
         return dtheta_mean_per_vox
 

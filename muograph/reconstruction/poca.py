@@ -37,6 +37,7 @@ class POCA(AbsSave, VoxelPlotting):
     _poca_points: Optional[Tensor] = None  # (mu, 3)
     _n_poca_per_vox: Optional[Tensor] = None  # (nx, ny, nz)
     _dtheta_mean_per_vox: Optional[Tensor] = None  # (nx, ny, nz)
+    _dtheta_rms_per_vox: Optional[Tensor] = None  # (nx, ny, nz)
     _poca_indices: Optional[Tensor] = None  # (mu, 3)
     _mask_in_voi: Optional[Tensor] = None  # (mu)
 
@@ -548,7 +549,7 @@ class POCA(AbsSave, VoxelPlotting):
         r"""Tensor: The POCA points per voxel."""
         if self._dtheta_mean_per_vox is None:
             self._dtheta_mean_per_vox = self.compute_dtheta_mean_per_vox(self, poca_indices=self.poca_indices, voi=self.voi)
-        return self._dtheta_mean_per_vox
+        return self._dtheta_mean_per_vox, self._dtheta_rms_per_vox
 
     @dtheta_mean_per_vox.setter
     def dtheta_mean_per_vox(self, value: Tensor) -> None:

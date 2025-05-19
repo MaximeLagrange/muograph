@@ -315,7 +315,7 @@ class POCA(AbsSave, VoxelPlotting):
         from torch import where
         from torch import unique
 
-        dtheta_mean_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=dtype_n)
+        dtheta_mean_per_vox = torch.ones(tuple(voi.n_vox_xyz), device=DEVICE, dtype=dtype_n)
         print("shape", dtheta_mean_per_vox.shape)
         print('dtheta', self.tracks.dtheta)
 

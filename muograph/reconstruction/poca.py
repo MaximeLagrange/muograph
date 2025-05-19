@@ -373,6 +373,7 @@ class POCA(AbsSave, VoxelPlotting):
                         for index in poca_points_where[0]:
                             dtheta_in_voxel.append(float(self.tracks.dtheta[index]))
                         dtheta_mean_per_vox[k, j, i] = float(mean(dtheta_in_voxel))
+                        print('mean', mean(dtheta_in_voxel))
 
         print("dtheta", dtheta_mean_per_vox)
         print('unique dtheta', torch.unique(dtheta_mean_per_vox))

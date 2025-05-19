@@ -315,9 +315,8 @@ class POCA(AbsSave, VoxelPlotting):
         from torch import where
         from torch import unique
 
-        dtheta_mean_per_vox = torch.ones(tuple(voi.n_vox_xyz), device=DEVICE, dtype=dtype_n)
-        print("shape", dtheta_mean_per_vox.shape)
-        print('dtheta', self.tracks.dtheta)
+        dtheta_mean_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=dtype_n)
+
 
         for i in range(voi.n_vox_xyz[2]):
 #            z_min = voi.xyz_min[2] + i * voi.vox_width[2]
@@ -358,33 +357,22 @@ class POCA(AbsSave, VoxelPlotting):
                     mask_slice_x = (poca_indices[:,0] >= k) & ((poca_indices[:,0]<=(k+1)))
                     
                     part_mask = (mask_slice_x) & (mask_slice_z)
-                    print('part_mask', torch.unique(part_mask),part_mask.shape)
-                    print(part_mask[:100])
-                    poca_where_part = torch.where(part_mask)
-                    print('wherepart',poca_where_part[:50])
 
+                    poca_where_part = torch.where(part_mask)
 
                     total_mask = (part_mask) & (mask_slice_y)
-                    print('total_mask', torch.unique(total_mask),total_mask.shape)
-                    poca_where_total = torch.where(total_mask)
-                    print('wheretotal', poca_where_total[:200])
 
+                    poca_where_total = torch.where(total_mask)
 
                     poca_points_where = torch.where(total_mask)
 
-                    print(total_mask[:100])
-                    print(k,j,i)
-                    print(poca_points_where[0].size(),'thissss')
 
                     if poca_points_where[0].size() != torch.Size([0]):
 
                         dtheta_in_voxel = []
                         for index in poca_points_where[0]:
                             dtheta_in_voxel.append(float(self.tracks.dtheta[index]))
-                            print('index and dtheta', index, int(self.tracks.dtheta[index]))
-                            print('whole list', dtheta_in_voxel)
-                            print(mean(dtheta_in_voxel),'meannnn')
-                        dtheta_mean_per_vox[k, j, i] = mean(dtheta_in_voxel)
+                        dtheta_mean_per_vox[k, j, i] = float(mean(dtheta_in_voxel))
 
         print("dtheta", dtheta_mean_per_vox)
         print('unique dtheta', torch.unique(dtheta_mean_per_vox))

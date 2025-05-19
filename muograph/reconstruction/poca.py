@@ -316,6 +316,7 @@ class POCA(AbsSave, VoxelPlotting):
         from statistics import mean
         from torch import where
         from torch import unique
+        from numpy import sqrt
 
         dtheta_mean_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=torch.float64)
         dtheta_rms_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=torch.float64)
@@ -378,7 +379,7 @@ class POCA(AbsSave, VoxelPlotting):
                             dtheta_in_voxel.append(float(self.tracks.dtheta[index]))
                             dtheta_square_in_voxel.append(float((self.tracks.dtheta[index])**2))
                         dtheta_mean_per_vox[k, j, i] = float(mean(dtheta_in_voxel))
-                        dtheta_rms_per_vox[k,j,i] = float(torch.sqrt(mean(dtheta_square_in_voxel)))
+                        dtheta_rms_per_vox[k,j,i] = float(np.sqrt(mean(dtheta_square_in_voxel)))
 
 
         return dtheta_mean_per_vox, dtheta_rms_per_vox

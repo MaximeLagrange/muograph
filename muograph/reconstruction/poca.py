@@ -547,8 +547,8 @@ class POCA(AbsSave, VoxelPlotting):
     @property
     def dtheta_mean_per_vox(self) -> Tensor:
         r"""Tensor: The POCA points per voxel."""
-        if self._dtheta_mean_per_vox is None:
-            self._dtheta_mean_per_vox = self.compute_dtheta_mean_per_vox(self, poca_indices=self.poca_indices, voi=self.voi)
+        if self._dtheta_mean_per_vox is None or self._dtheta_rms_per_vox is None:
+            self._dtheta_mean_per_vox, self._dtheta_rms_per_vox = self.compute_dtheta_mean_per_vox(self, poca_indices=self.poca_indices, voi=self.voi)
         return self._dtheta_mean_per_vox, self._dtheta_rms_per_vox
 
     @dtheta_mean_per_vox.setter

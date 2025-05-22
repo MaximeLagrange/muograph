@@ -324,52 +324,23 @@ class POCA(AbsSave, VoxelPlotting):
 
 
         for i in range(voi.n_vox_xyz[2]):
-#            z_min = voi.xyz_min[2] + i * voi.vox_width[2]
-#            z_max = z_min + voi.vox_width[2]
-#            mask_slice_z = (poca_points[:, 2] >= z_min) & ((poca_points[:, 2] <= z_max))
-#            print('mask_z', torch.unique(mask_slice_z), mask_slice_z.shape)
-#            print(mask_slice_z[:100])
-#            poca_where_z = torch.where(mask_slice_z)
-#            print('wherez',poca_where_z[:50])
-
 
             mask_slice_z = (poca_indices[:,2] >= i) & ((poca_indices[:,2]<=(i+1)))
 
     
 
             for j in range(voi.n_vox_xyz[1]):
-#                y_min = voi.xyz_min[1] + j * voi.vox_width[1]
-#                y_max = y_min + voi.vox_width[1]
-#                mask_slice_y = (poca_points[:, 1] >= y_min) & ((poca_points[:, 1] <= y_max))
-
-#                print('mask_y',torch.unique(mask_slice_y),mask_slice_y.shape)
-#                print(mask_slice_y[:100])
-#                poca_where_y = torch.where(mask_slice_y)
-#                print('wherey',poca_where_y[:50])
 
                 mask_slice_y = (poca_indices[:,1] >= j) & ((poca_indices[:,1]<=(j+1)))
 
 
                 for k in range(voi.n_vox_xyz[0]):
-#                    x_min = voi.xyz_min[0] + k * voi.vox_width[0]
-#                    x_max = x_min + voi.vox_width[0]
-#                    mask_slice_x = (poca_points[:, 0] >= x_min) & ((poca_points[:, 0] <= x_max))
-#                    print('mask_x',torch.unique(mask_slice_x),mask_slice_x.shape)
-#                    print(mask_slice_x[:100])
-#                    poca_where_x = torch.where(mask_slice_x)
-#                    print('wherex',poca_where_x[:50])
 
                     mask_slice_x = (poca_indices[:,0] >= k) & ((poca_indices[:,0]<=(k+1)))
-                    
                     part_mask = (mask_slice_x) & (mask_slice_z)
-
                     poca_where_part = torch.where(part_mask)
-
                     total_mask = (part_mask) & (mask_slice_y)
-
                     poca_points_where = torch.where(total_mask)
-
-
                     if poca_points_where[0].size() != torch.Size([0]):
                         print('in mean kji', k,j,i)
                         dtheta_in_voxel = []
@@ -428,8 +399,8 @@ class POCA(AbsSave, VoxelPlotting):
 
                         dtheta_rms_per_vox[k,j,i] = np.sqrt(mean(dtheta_square_in_voxel))
 
-            print(dtheta_rms_per_vox)
-            return dtheta_rms_per_vox
+        print(dtheta_rms_per_vox)
+        return dtheta_rms_per_vox
 
 
 

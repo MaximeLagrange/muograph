@@ -371,7 +371,7 @@ class POCA(AbsSave, VoxelPlotting):
 
 
                     if poca_points_where[0].size() != torch.Size([0]):
-
+                        print('in mean kji', k,j,i)
                         dtheta_in_voxel = []
 
                         for index in poca_points_where[0]:
@@ -416,7 +416,7 @@ class POCA(AbsSave, VoxelPlotting):
                     poca_where_part = torch.where(part_mask)
 
                     total_mask = (part_mask) & (mask_slice_y)
-
+                    print('before',i,j,k)
                     poca_points_where = torch.where(total_mask)
                     print('where', poca_points_where)
                     if poca_points_where[0].size() != torch.Size([0]):

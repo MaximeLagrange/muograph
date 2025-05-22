@@ -418,9 +418,9 @@ class POCA(AbsSave, VoxelPlotting):
                     total_mask = (part_mask) & (mask_slice_y)
 
                     poca_points_where = torch.where(total_mask)
-
+                    print('where', poca_points_where)
                     if poca_points_where[0].size() != torch.Size([0]):
-
+                        print(k,j,i)
                         dtheta_square_in_voxel = []
 
                         for index in poca_points_where[0]:
@@ -428,7 +428,7 @@ class POCA(AbsSave, VoxelPlotting):
 
                         dtheta_rms_per_vox[k,j,i] = np.sqrt(mean(dtheta_square_in_voxel))
 
-
+            print(dtheta_rms_per_vox)
             return dtheta_rms_per_vox
 
 

@@ -304,19 +304,17 @@ class POCA(AbsSave, VoxelPlotting):
     @staticmethod
     def compute_dtheta_mean_per_vox(self, poca_indices: Tensor, voi: Volume) -> Tensor:
         """
-        Computes the POCA points per voxel, given a voxelized volume VOI.
+        Computes the mean scattering angle per voxel, given a voxelized volume VOI.
 
         Arguments:
          - voi:VolumeIntrest, an instance of the VOI class.
          - poca_indices: Tensor containing the poca points location, with size (n_mu, 3).
 
         Returns:
-         - dtheta_mean_per_vox: torch.tensor(dtype=int64) with size (nvox_x,nvox_y,nvox_z),
+         - dtheta_mean_per_vox: torch.tensor(dtype=float64) with size (nvox_x,nvox_y,nvox_z),
          the average scattering angle per voxel.
         """
         from statistics import mean
-        from torch import where
-        from numpy import sqrt
 
         dtheta_mean_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=torch.float64)
 
@@ -348,13 +346,11 @@ class POCA(AbsSave, VoxelPlotting):
          - poca_indices: Tensor containing the poca points location, with size (n_mu, 3).
 
         Returns:
-         - dtheta_rms_per_vox: torch.tensor(dtype=int64) with size (nvox_x,nvox_y,nvox_z),
+         - dtheta_rms_per_vox: torch.tensor(dtype=float64) with size (nvox_x,nvox_y,nvox_z),
          the rms of the  scattering angle per voxel.
         """
 
         from statistics import mean
-        from torch import where
-        from numpy import sqrt
 
         dtheta_rms_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=torch.float64)
 

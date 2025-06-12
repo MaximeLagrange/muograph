@@ -340,50 +340,6 @@ class POCA(AbsSave, VoxelPlotting):
                         dtheta_rms_per_vox[k, j, i] = np.sqrt(mean(dtheta_square_in_voxel))
         return dtheta_mean_per_vox, dtheta_rms_per_vox
 
-    """
-    @staticmethod
-    def compute_dtheta_rms_per_vox(self, poca_indices: Tensor, voi: Volume) -> Tensor:
-
-        Computes the rms of the scattering angle per voxel, given a voxelized volume VOI.
-
-        Arguments:
-         - voi:VolumeIntrest, an instance of the VOI class.
-         - poca_indices: Tensor containing the poca points location, with size (n_mu, 3).
-
-        Returns:
-         - dtheta_rms_per_vox: torch.tensor(dtype=int64) with size (nvox_x,nvox_y,nvox_z),
-         the rms of the  scattering angle per voxel.
-
-        from statistics import mean
-        from torch import where
-        from numpy import sqrt
-
-        dtheta_rms_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=torch.float32 if DEVICE==torch.device("mps") else torch.float64)
-
-        for i in range(voi.n_vox_xyz[2]):
-            mask_slice_z = (poca_indices[:, 2] >= i) & ((poca_indices[:, 2] <= (i + 1)))
-            for j in range(voi.n_vox_xyz[1]):
-                mask_slice_y = (poca_indices[:, 1] >= j) & ((poca_indices[:, 1] <= (j + 1)))
-                for k in range(voi.n_vox_xyz[0]):
-                    mask_slice_x = (poca_indices[:, 0] >= k) & ((poca_indices[:, 0] <= (k + 1)))
-
-                    part_mask = (mask_slice_x) & (mask_slice_z)
-
-                    total_mask = (part_mask) & (mask_slice_y)
-
-                    poca_indices_where = torch.where(total_mask)
-
-                    if poca_indices_where[0].size() != torch.Size([0]):
-                        dtheta_square_in_voxel = []
-
-                        for index in poca_indices_where[0]:
-                            dtheta_square_in_voxel.append((float(self.tracks.dtheta[index])) ** 2)
-
-                        dtheta_rms_per_vox[k, j, i] = np.sqrt(mean(dtheta_square_in_voxel))
-
-        return dtheta_rms_per_vox
-    """
-
     @staticmethod
     def compute_mask_in_voi(poca_points: Tensor, voi: Volume) -> Tensor:
         """

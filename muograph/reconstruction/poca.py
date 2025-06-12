@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor
 from copy import deepcopy
-from typing import Optional, Dict, Union
+from typing import Optional, Dict, Union, Tuple
 import matplotlib
 import matplotlib.pyplot as plt
 from fastprogress import progress_bar
@@ -302,7 +302,7 @@ class POCA(AbsSave, VoxelPlotting):
         return n_poca_per_vox
 
     @staticmethod
-    def compute_dtheta_mean_per_vox(self, poca_indices: Tensor, voi: Volume) -> Tensor:
+    def compute_dtheta_mean_per_vox(self, poca_indices: Tensor, voi: Volume) -> Tuple[Tensor, Tensor]:
         """
         Computes the mean scattering angle per voxel, given a voxelized volume VOI.
 
@@ -317,7 +317,7 @@ class POCA(AbsSave, VoxelPlotting):
         from statistics import mean
 
         dtheta_mean_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=torch.float64)
-
+        dtheta_rms_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=torch.float64)
         for i in range(voi.n_vox_xyz[2]):
             mask_slice_z = (poca_indices[:, 2] >= i) & ((poca_indices[:, 2] <= (i + 1)))
             for j in range(voi.n_vox_xyz[1]):
@@ -329,16 +329,18 @@ class POCA(AbsSave, VoxelPlotting):
                     poca_indices_where = torch.where(total_mask)
                     if poca_indices_where[0].size() != torch.Size([0]):
                         dtheta_in_voxel = []
+                        dtheta_square_in_voxel = []
                         for index in poca_indices_where[0]:
                             dtheta_in_voxel.append(float(self.tracks.dtheta[index]))
-
+                            dtheta_square_in_voxel.append((float(self.tracks.dtheta[index])) ** 2)
                         dtheta_mean_per_vox[k, j, i] = float(mean(dtheta_in_voxel))
+                        dtheta_rms_per_vox[k, j, i] = np.sqrt(mean(dtheta_square_in_voxel))
+        return dtheta_mean_per_vox, dtheta_rms_per_vox
 
-        return dtheta_mean_per_vox
-
+    """
     @staticmethod
     def compute_dtheta_rms_per_vox(self, poca_indices: Tensor, voi: Volume) -> Tensor:
-        """
+
         Computes the rms of the scattering angle per voxel, given a voxelized volume VOI.
 
         Arguments:
@@ -347,9 +349,7 @@ class POCA(AbsSave, VoxelPlotting):
 
         Returns:
          - dtheta_rms_per_vox: torch.tensor(dtype=float64) with size (nvox_x,nvox_y,nvox_z),
-         the rms of the  scattering angle per voxel.
-        """
-
+    the rms of the  scattering angle per voxel.
         from statistics import mean
 
         dtheta_rms_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=torch.float64)
@@ -376,6 +376,7 @@ class POCA(AbsSave, VoxelPlotting):
                         dtheta_rms_per_vox[k, j, i] = np.sqrt(mean(dtheta_square_in_voxel))
 
         return dtheta_rms_per_vox
+    """
 
     @staticmethod
     def compute_mask_in_voi(poca_points: Tensor, voi: Volume) -> Tensor:
@@ -537,28 +538,30 @@ class POCA(AbsSave, VoxelPlotting):
         self._n_poca_per_vox = value
 
     @property
-    def dtheta_mean_per_vox(self) -> Tensor:
+    def dtheta_mean_per_vox(self) -> Tuple[Tensor, Tensor]:
         r"""Tensor: The POCA points per voxel."""
-        if self._dtheta_mean_per_vox is None:
-            self._dtheta_mean_per_vox = self.compute_dtheta_mean_per_vox(self, poca_indices=self.poca_indices, voi=self.voi)
-        return self._dtheta_mean_per_vox
+        if self._dtheta_mean_per_vox is None or self._dtheta_rms_per_vox is None:
+            self._dtheta_mean_per_vox, self._dtheta_rms_per_vox = self.compute_dtheta_mean_per_vox(self, poca_indices=self.poca_indices, voi=self.voi)
+        return self._dtheta_mean_per_vox, self._dtheta_rms_per_vox
 
     @dtheta_mean_per_vox.setter
-    def dtheta_mean_per_vox(self, value: Tensor) -> None:
+    def dtheta_mean_per_vox(self, value: Tuple[Tensor, Tensor]) -> None:
         r"""Set the mean scatter angle per voxel."""
-        self._dtheta_mean_per_vox = value
+        self._dtheta_mean_per_vox, self._dtheta_rms_per_vox = value
 
+    """
     @property
     def dtheta_rms_per_vox(self) -> Tensor:
-        r"""Tensor: The POCA points per voxel."""
+        rTensor: The POCA points per voxel.
         if self._dtheta_rms_per_vox is None:
             self._dtheta_rms_per_vox = self.compute_dtheta_rms_per_vox(self, poca_indices=self.poca_indices, voi=self.voi)
         return self._dtheta_rms_per_vox
 
     @dtheta_rms_per_vox.setter
     def dtheta_rms_per_vox(self, value: Tensor) -> None:
-        r"""Set the rms of the scatter angle per voxel."""
+        rSet the rms of the scatter angle per voxel.
         self._dtheta_rms_per_vox = value
+    """
 
     @property
     def poca_indices(self) -> Tensor:

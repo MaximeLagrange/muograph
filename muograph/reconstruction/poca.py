@@ -301,7 +301,6 @@ class POCA(AbsSave, VoxelPlotting):
 
         return n_poca_per_vox
 
-    @staticmethod
     def compute_dtheta_mean_per_vox(self, poca_indices: Tensor, voi: Volume) -> Tuple[Tensor, Tensor]:
         """
         Computes the mean scattering angle and the rms scattering angle per voxel, given a voxelized volume VOI.
@@ -503,7 +502,7 @@ class POCA(AbsSave, VoxelPlotting):
     def dtheta_mean_per_vox(self) -> Tensor:
         r"""Tensor: The POCA points per voxel."""
         if self._dtheta_mean_per_vox is None:
-            self._dtheta_mean_per_vox, self._dtheta_rms_per_vox = self.compute_dtheta_mean_per_vox(self, poca_indices=self.poca_indices, voi=self.voi)
+            self._dtheta_mean_per_vox, self._dtheta_rms_per_vox = self.compute_dtheta_mean_per_vox(poca_indices=self.poca_indices, voi=self.voi)
         return self._dtheta_mean_per_vox
 
     @dtheta_mean_per_vox.setter
@@ -515,7 +514,7 @@ class POCA(AbsSave, VoxelPlotting):
     def dtheta_rms_per_vox(self) -> Tensor:
         r"""Tensor: The POCA points per voxel."""
         if self._dtheta_rms_per_vox is None:
-            self._dtheta_mean_per_vox, self._dtheta_rms_per_vox = self.compute_dtheta_mean_per_vox(self, poca_indices=self.poca_indices, voi=self.voi)
+            self._dtheta_mean_per_vox, self._dtheta_rms_per_vox = self.compute_dtheta_mean_per_vox(poca_indices=self.poca_indices, voi=self.voi)
         return self._dtheta_rms_per_vox
 
     @dtheta_rms_per_vox.setter

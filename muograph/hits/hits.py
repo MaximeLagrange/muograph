@@ -58,6 +58,7 @@ class Hits:
         energy_range: Optional[Tuple[float, float]] = None,
         efficiency: float = 1.0,
         input_unit: str = "mm",
+        n_mu_max: Optional[int] = None,
     ) -> None:
         r"""
         Initializes a Hits object to represent particle hit data from a detector, with input from either
@@ -94,7 +95,7 @@ class Hits:
         self.energy_range = energy_range
 
         # Load or create hits DataFrame
-        if csv_filename is not None and df is not None:
+        if csv_filename is None and df is None:
             raise ValueError("Provide either csv_filename or df, not both.")
 
         if csv_filename is not None:
@@ -102,7 +103,7 @@ class Hits:
             if input_unit not in allowed_d_units:
                 raise ValueError("Input unit must be mm, cm, dm or m")
 
-            self._df = self.get_data_frame_from_csv(csv_filename)
+            self._df = self.get_data_frame_from_csv(csv_filename, n_mu_max)
 
         elif df is not None:
             self.input_unit = input_unit
@@ -141,7 +142,7 @@ class Hits:
         return description
 
     @staticmethod
-    def get_data_frame_from_csv(csv_filename: str) -> pd.DataFrame:
+    def get_data_frame_from_csv(csv_filename: str, n_mu_max: Optional[int] = None) -> pd.DataFrame:
         r"""
         Reads a CSV file into a DataFrame.
 
@@ -155,7 +156,7 @@ class Hits:
         if not Path(csv_filename).exists():
             raise FileNotFoundError(f"The file {csv_filename} does not exist.")
 
-        return pd.read_csv(csv_filename)
+        return pd.read_csv(csv_filename) if n_mu_max is None else pd.read_csv(csv_filename, nrows=n_mu_max)
 
     @staticmethod
     def get_hits_from_df(df: pd.DataFrame, plane_labels: Optional[Tuple[int, ...]] = None) -> Tensor:
@@ -172,18 +173,25 @@ class Hits:
         Returns:
             hits (Tensor): Hits, with size (3, n_plane, n_mu)
         """
-        # Extract plane count and validate columns
 
+        # Normalize column mapping to lowercase
+        col_map = {col.lower(): col for col in df.columns}
+
+        # Extract plane count and validate columns
         n_plane = len(plane_labels)  # type: ignore
         hits = torch.zeros((3, n_plane, len(df)), dtype=dtype_hit, device=DEVICE)
 
         for i, plane in enumerate(plane_labels):  # type: ignore
-            x_col = f"X{plane}"
-            y_col = f"Y{plane}"
-            z_col = f"Z{plane}"
+            x_key = f"x{plane}"
+            y_key = f"y{plane}"
+            z_key = f"z{plane}"
 
-            if x_col not in df or y_col not in df or z_col not in df:
-                raise KeyError(f"Missing columns for plane {plane}: {x_col}, {y_col}, {z_col}")
+            try:
+                x_col = col_map[x_key]
+                y_col = col_map[y_key]
+                z_col = col_map[z_key]
+            except KeyError as e:
+                raise KeyError(f"Missing columns for plane {plane}: {x_key.upper()}, {y_key.upper()}, {z_key.upper()}") from e
 
             hits[0, i, :] = torch.tensor(df[x_col].values, dtype=dtype_hit, device=DEVICE)
             hits[1, i, :] = torch.tensor(df[y_col].values, dtype=dtype_hit, device=DEVICE)

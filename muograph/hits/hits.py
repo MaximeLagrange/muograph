@@ -3,19 +3,16 @@ import pandas as pd
 import torch
 from torch import Tensor
 from typing import Optional, Tuple, Dict
-import matplotlib
 import matplotlib.pyplot as plt
 
 from muograph.plotting.plotting import get_n_bins_xy_from_xy_span
 from muograph.plotting.params import (
-    font,
     d_unit,
     n_bins_2D,
-    hist_figsize,
     labelsize,
-    configure_plot_theme,
     cmap,
 )
+from muograph.plotting.style import set_plot_style, add_colorbar_right
 from muograph.utils.datatype import dtype_hit, dtype_E
 from muograph.utils.device import DEVICE
 
@@ -315,13 +312,10 @@ class Hits:
             n_bins (int, optional): The number of bins of the 2D histogram. Defaults to n_bins_2D.
             filename (Optional[str], optional): Path to a filename where to save the figure. Defaults to None.
         """
-        # Set default font
-        matplotlib.rc("font", **font)
-
-        configure_plot_theme(font)  # type: ignore
+        set_plot_style()
 
         # Create figure
-        fig, ax = plt.subplots(figsize=hist_figsize)
+        fig, ax = plt.subplots()
 
         # Get true hits or real hits
         hits = self.reco_hits if reco_hits is True else self.gen_hits
@@ -355,9 +349,7 @@ class Hits:
             y=1,
         )
 
-        # Add colorbar
-        cbar_ax = fig.add_axes(rect=(0.85, 0.15, 0.05, 0.7))
-        fig.colorbar(h[3], cax=cbar_ax, label=f"# hits / {pixel_size**2:.0f} {d_unit}$^2$")
+        add_colorbar_right(ax=ax, mappable=h[3], label=f"hits / {pixel_size**2:.0f} {d_unit}$^2$")
 
         # Save plot
         if filename is not None:

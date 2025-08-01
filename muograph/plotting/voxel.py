@@ -6,10 +6,10 @@ import matplotlib
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-import seaborn as sns
+from muograph.plotting.style import set_plot_style, add_colorbar_right, colors
 
 from muograph.volume.volume import Volume
-from muograph.plotting.params import font, d_unit, scale, cmap, fontsize, hist_figsize, n_bins, labelsize, titlesize, configure_plot_theme, colors
+from muograph.plotting.params import cmap, scale, n_bins, d_unit
 
 
 class VoxelPlotting:
@@ -187,58 +187,42 @@ class VoxelPlotting:
         dim: int = 2,
         figname: Optional[str] = None,
         reverse: bool = False,
-        pred_label: str = "Scattering density",
+        pred_label: str = "",
         fig_suptitle: Optional[str] = None,
         pred_unit: str = "[a.u]",
-        scale: float = 7.0,
         cmap: str = cmap,
         proj1d: bool = True,
         reference_value: Optional[float] = None,
         v_min_max: Optional[Tuple[float, float]] = None,
     ) -> None:
         r"""
-        Plot a 2D slice from 3D voxel-wise predictions with optional uncertainty estimates.
+        Plot a 2D slice from 3D voxel-wise predictions, with optional uncertainties and 1D projections.
 
-        This method generates a plot of voxel-wise predictions from a 3D volume along a specified
-        dimension (`dim`). It allows for optional visualization of uncertainty in the predictions
-        and provides the ability to average the predictions along x and y axes. Additional
-        customization options include setting colormaps, axis labels, and saving the plot to a file.
+        This method visualizes a 2D slice of a 3D tensor of voxel-wise predictions, taken along a specified
+        dimension (`dim`). It optionally supports displaying uncertainties, 1D projections along the orthogonal
+        axes, and a reference line. The figure can be customized in terms of colormap, title, units, and saved
+        as a file.
 
         Args:
-            - voi (`Volume`): An instance of the volume class.
-            - xyz_voxel_preds (`Tensor`): Tensor containing voxel predictions for the volume. (shape: [n_vox_x, n_vox_y, n_vox_z]).
-            - xyz_voxel_pred_uncs : (`Optional[Tensor]`): Optional 3D tensor of the same shape as `xyz_voxel_preds` containing prediction
-            uncertainties, by default None.
-            - voi_slice  (`Tuple[int, int]`):  Start and end indices for slicing along the specified dimension.
-                Defaults to None, which uses the full range of the dimension.
-            - dim (`int`): The dimension along which to slice the 3D voxel-wise predictions.
-            Must be 0, 1, or 2 corresponding to x, y, or z axes respectively.
-            - figname (`Optional[str]`): If provided, saves the plot to the given file name, by default None.
-            - reverse  (`bool`) Whether to reverse the colormap, by default False.
-            - fig_suptitle (`str`): Title for the figure, by default None.
-            - pred_label (`Optional[str]`): Label for the prediction data, used in axis labels and title, by default 'Prediction'.
-            - pred_unit (`Optional[str]`): Unit of the predictions to be displayed in the colorbar and axis labels, by default '[unit]'.
-            - scale (`Optional[float]`): Scale factor for determining figure size, by default 1.0.
-            - cmap (`Optional[str]`): Colormap to use for the voxel prediction plot, by default 'jet'.
-            - proj1d (`Optional[bool]`): Whether to project the 3D predictions onto 1D plots, by default True.
-            - reference_value (`Optional[float]`): Optional reference value to display as a horizontal/vertical line in the averaged
-            predictions plot, by default None.
-             - v_min_max ('Optional[Tuple]'): Sets the min and max values of the 2D histogram.
+            voi (`Volume`): An instance of the `Volume` class defining the geometry and voxel structure.
+            xyz_voxel_preds (`Tensor`): A 3D tensor of predicted values for each voxel, of shape (Vx, Vy, Vz).
+            xyz_voxel_pred_uncs (`Optional[Tensor]`): Optional 3D tensor of prediction uncertainties with the
+                same shape as `xyz_voxel_preds`. Default is `None`.
+            voi_slice (`Optional[Tuple[int, int]]`): Start and end indices for slicing along `dim`.
+                If `None`, the full range of the volume along that dimension is used.
+            dim (`int`): The dimension to slice along (0: x, 1: y, 2: z).
+            figname (`Optional[str]`): If provided, the plot is saved to this filename (with plane suffix and PDF format).
+            reverse (`bool`): Whether to reverse the colormap. Default is `False`.
+            pred_label (`str`): Label for the prediction (used in colorbar and projections). Default is an empty string.
+            fig_suptitle (`Optional[str]`): Title for the entire figure. If `None`, a default title is generated.
+            pred_unit (`str`): Unit of prediction values (e.g. "[a.u.]", "[GeV]"). Default is "[a.u]".
+            cmap (`str`): Matplotlib colormap to use. Default is `cmap` (must be defined earlier).
+            proj1d (`bool`): Whether to include 1D projections (top and right). Default is `True`.
+            reference_value (`Optional[float]`): If provided, a horizontal and vertical reference line is drawn in the projections.
+            v_min_max (`Optional[Tuple[float, float]]`): Optional fixed min/max values for the colormap scale.
         """
-        sns.set_theme(
-            style="darkgrid",
-            rc={
-                "font.family": font["family"],
-                "font.size": font["size"],
-                "axes.labelsize": font["size"],  # Axis label font size
-                "axes.titlesize": font["size"],  # Axis title font size
-                "xtick.labelsize": font["size"],  # X-axis tick font size
-                "ytick.labelsize": font["size"],  # Y-axis tick font size
-            },
-        )
 
-        # Set default font
-        matplotlib.rc("font", **font)
+        set_plot_style()
 
         # Define colormap
         cmap = cmap + "_r" if reverse else cmap
@@ -327,14 +311,8 @@ class VoxelPlotting:
             },
         }
 
-        # Compute the figure size based on the plot xy ratio
-        figsize = VoxelPlotting.get_fig_size(voi=voi, nrows=1, ncols=1, dims=dim_mapping[dim]["xy_dims"], scale=scale)  # type: ignore
-
-        # Compute figure size based on the main axis size
-        figsize = VoxelPlotting.get_fig_size(voi=voi, nrows=1, ncols=1, dims=dim_mapping[dim]["xy_dims"], scale=scale)  # type: ignore
-
         # Create the main figure
-        fig, ax = plt.subplots(figsize=figsize)
+        fig, ax = plt.subplots()
 
         # Set title
         if fig_suptitle is None:
@@ -364,16 +342,20 @@ class VoxelPlotting:
         # Set axis labels
         ax.set_xlabel(f"Voxel ${dim_mapping[dim]['x_label']}$ location [mm]", fontweight="bold")
         ax.set_ylabel(f"Voxel ${dim_mapping[dim]['y_label']}$ location [mm]", fontweight="bold")
-        ax.tick_params(axis="both", labelsize=labelsize)
+        ax.tick_params(axis="both")
 
         if proj1d:
             divider = make_axes_locatable(ax)
             ax_histx = divider.append_axes("top", 1.0, pad=0.1, sharex=ax)
             ax_histy = divider.append_axes("right", 1.0, pad=0.1, sharey=ax)
 
+            # Create ax for colorbar
+            ax_cb = divider.append_axes("right", size="5%", pad=0.1)
+            _ = ax.figure.colorbar(im, cax=ax_cb, label=f"{pred_label} {pred_unit}")
+
             # Remove axis labels for histograms
-            ax_histx.tick_params(axis="x", labelbottom=False, labelsize=labelsize)
-            ax_histy.tick_params(axis="y", labelleft=False, labelsize=labelsize)
+            ax_histx.tick_params(axis="x", labelbottom=False)
+            ax_histy.tick_params(axis="y", labelleft=False)
 
             # Set ticks position to top
             ax_histy.xaxis.set_ticks_position("top")
@@ -383,40 +365,57 @@ class VoxelPlotting:
             ax_histx.set_title(
                 fig_suptitle,
                 fontweight="bold",
-                fontsize=titlesize,
                 y=1.05,
             )
 
             # Plot the predictions averaged along the x and y axis
             if xyz_voxel_pred_uncs is None:
-                ax_histx.scatter(
+                ax_histx.errorbar(
                     dim_mapping[dim]["x_vox_pos"],
                     dim_mapping[dim]["x_data"],
-                    marker=".",
+                    # xerr=voi.vox_width[dim_mapping[dim]["xy_dims"][0]].detach().cpu().numpy() / 2,
+                    fmt="+",
+                    markersize=4,
+                    elinewidth=1,
+                    capsize=2,
+                    color="black",
+                    label=r"Projection $z \rightarrow \mu$ count",
                 )
-                ax_histy.scatter(
+                ax_histy.errorbar(
                     dim_mapping[dim]["y_data"],
                     dim_mapping[dim]["y_vox_pos"],
-                    marker=".",
+                    # yerr=voi.vox_width[dim_mapping[dim]["xy_dims"][1]].detach().cpu().numpy() / 2,
+                    fmt="+",
+                    markersize=4,
+                    elinewidth=1,
+                    capsize=2,
+                    color="black",
                 )
 
             else:
                 # Plot uncertainties if available
                 ax_histx.errorbar(
-                    x=dim_mapping[dim]["x_vox_pos"],
-                    y=dim_mapping[dim]["x_data"],
-                    xerr=0,
+                    dim_mapping[dim]["x_vox_pos"],
+                    dim_mapping[dim]["x_data"],
+                    xerr=voi.vox_width[dim_mapping[dim]["xy_dims"][0]].detach().cpu().numpy() / 2,  # type: ignore
                     yerr=dim_mapping[dim]["x_data_uncs"],
-                    marker=".",
-                    alpha=0.6,
+                    fmt="|",
+                    markersize=4,
+                    elinewidth=1,
+                    capsize=2,
+                    color="black",
+                    label=r"Projection $z \rightarrow \mu$ count",
                 )
                 ax_histy.errorbar(
-                    x=dim_mapping[dim]["y_data"],
-                    y=dim_mapping[dim]["y_vox_pos"],
+                    dim_mapping[dim]["y_data"],
+                    dim_mapping[dim]["y_vox_pos"],
+                    yerr=voi.vox_width[dim_mapping[dim]["xy_dims"][1]].detach().cpu().numpy() / 2,  # type: ignore
                     xerr=dim_mapping[dim]["y_data_uncs"],
-                    yerr=0,
-                    marker=".",
-                    alpha=0.6,
+                    fmt="|",
+                    markersize=4,
+                    elinewidth=1,
+                    capsize=2,
+                    color="black",
                 )
 
             # Set same range for x and y histograms
@@ -430,8 +429,8 @@ class VoxelPlotting:
                     np.min(dim_mapping[dim]["y_data"]),  # type: ignore
                     reference_value,
                 )
-                ax_histx.set_ylim(min_pred_xy * 0.98, max_pred_xy * 1.02)
-                ax_histy.set_xlim(min_pred_xy * 0.98, max_pred_xy * 1.02)
+                ax_histx.set_ylim(min_pred_xy * 0.90, max_pred_xy * 1.1)
+                ax_histy.set_xlim(min_pred_xy * 0.90, max_pred_xy * 1.1)
 
                 # Plot reference value
                 ax_histx.axhline(y=reference_value, color="red", alpha=0.5)
@@ -442,26 +441,23 @@ class VoxelPlotting:
             ax_histy.grid(visible=True, color="grey", linestyle="--", linewidth=0.5)
 
             # Set axis labels
-            ax_histx.set_ylabel(pred_label + " " + pred_unit, fontsize=fontsize, fontweight="bold")
-            ax_histy.set_xlabel(pred_label + " " + pred_unit, fontsize=fontsize, fontweight="bold")
+            # ax_histx.set_ylabel(pred_label + " " + pred_unit, fontweight="bold")
+            # ax_histy.set_xlabel(pred_label + " " + pred_unit, fontweight="bold")
 
         else:
             # Set figure title
             fig.suptitle(
                 fig_suptitle,
                 fontweight="bold",
-                fontsize=titlesize,
+                y=1.05,
             )
 
-        # Add colorbar
-        cbar_ax = fig.add_axes(rect=(0.95, 0.1, 0.03, 0.6))  # [left, bottom, width, height]
-        cbar = fig.colorbar(im, cax=cbar_ax)  # Attach colorbar to the custom axis
-        cbar.set_label(pred_label + " " + pred_unit, fontweight="bold")  # Colorbar label
+            add_colorbar_right(ax, im, label=pred_label + " " + pred_unit)
 
         # Save plot
         if figname is not None:
             plt.savefig(
-                figname + "_" + dim_mapping[dim]["plane"] + "_view",  # type: ignore
+                figname + "_" + dim_mapping[dim]["plane"] + "_view.pdf",  # type: ignore
                 bbox_inches="tight",
             )
         plt.show()
@@ -505,21 +501,6 @@ class VoxelPlotting:
         Returns:
             - None: Displays the generated plots and optionally saves them to a file.
         """
-
-        sns.set_theme(
-            style="darkgrid",
-            rc={
-                "font.family": font["family"],
-                "font.size": font["size"],
-                "axes.labelsize": font["size"],  # Axis label font size
-                "axes.titlesize": font["size"],  # Axis title font size
-                "xtick.labelsize": font["size"],  # X-axis tick font size
-                "ytick.labelsize": font["size"],  # Y-axis tick font size
-            },
-        )
-
-        # Set default font
-        matplotlib.rc("font", **font)
 
         # Define colormap
         cmap = cmap + "_r" if reverse else cmap
@@ -668,7 +649,6 @@ class VoxelPlotting:
 
             axs[i].set_title(
                 r"{} $\in$ [{:.0f},{:.0f}] {}".format(dim_label, z_min, z_max, d_unit),
-                fontsize=fontsize - 1,
             )
             axs[i].set_aspect("equal")
             axs[i].grid(False)
@@ -680,7 +660,7 @@ class VoxelPlotting:
             if i >= nplots - ncols:
                 axs[i].set_xlabel(x_label, fontweight="bold")
 
-            axs[i].tick_params(axis="both", labelsize=labelsize)
+            axs[i].tick_params(axis="both")
 
         # remove empty subplots
         for i in range(1, extra + 1):
@@ -700,14 +680,13 @@ class VoxelPlotting:
             x=0.58,
             y=1,
             fontweight="bold",
-            fontsize=titlesize,
             va="top",
         )
 
         # Save file
         if figname is not None:
             fig.savefig(
-                figname + "_" + dim_mapping[dim]["plane"] + "_view_slice.png",  # type: ignore
+                figname + "_" + dim_mapping[dim]["plane"] + "_view_slice.pdf",  # type: ignore
                 bbox_inches="tight",
             )
 
@@ -722,14 +701,11 @@ class VoxelPlotting:
         log: bool = False,
         n_bins: int = n_bins,
     ) -> None:
-        # Set default font
-        matplotlib.rc("font", **font)
-
         # Create figure
-        fig, ax = plt.subplots(figsize=hist_figsize)
+        fig, ax = plt.subplots()
 
         # Set figure title
-        fig.suptitle(title, fontweight="bold", fontsize=titlesize)
+        fig.suptitle(title)
 
         # Get data range
         range = (xyz_voxel_preds.min().item(), xyz_voxel_preds.max().item())
@@ -763,9 +739,9 @@ class VoxelPlotting:
         ax.grid(visible=True, color="grey", linestyle="--", linewidth=0.5)
 
         # Axis labels
-        ax.set_ylabel("Frequency", fontweight="bold")
-        ax.set_xlabel(x_label, fontweight="bold")
-        ax.tick_params(axis="both", labelsize=labelsize)
+        ax.set_ylabel("Frequency")
+        ax.set_xlabel(x_label)
+        ax.tick_params(axis="both")
 
         ax.legend()
         plt.tight_layout()
@@ -784,9 +760,7 @@ class VoxelPlotting:
         r"""
         Plot the voxel volume as a grid given the desired projection.
         """
-        # Configure plot theme
-        configure_plot_theme(font=font)  # type: ignore
-
+        set_plot_style()
         if ax is None:
             fig, ax = plt.subplots()
 
@@ -905,6 +879,7 @@ class VoxelPlotting:
                 xmin=extent_x[0],
                 xmax=extent_x[1],
             )
+        plt.show()
 
     @staticmethod
     def plot_3D_to_1D(
@@ -930,10 +905,7 @@ class VoxelPlotting:
             ValueError: If `dim` is not in {0, 1, 2}.
         """
 
-        # Set theme
-        configure_plot_theme(font)
-
-        fig, ax = plt.subplots(figsize=hist_figsize)
+        fig, ax = plt.subplots()
 
         if voi is None:
             nx, ny, nz = data_3D.size() if isinstance(data_3D, Tensor) else data_3D[0].size()

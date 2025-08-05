@@ -4,14 +4,13 @@ from typing import Tuple, Optional, Dict, Union
 import math
 import matplotlib.pyplot as plt
 import matplotlib
-import seaborn as sns
 import pandas as pd
 import numpy as np
 
 from muograph.utils.save import AbsSave
 from muograph.hits.hits import Hits
 from muograph.volume.volume import Volume
-from muograph.plotting.params import n_bins, font, alpha_sns, titlesize, hist_figsize, hist2_figsize, labelsize, tracking_figsize, configure_plot_theme
+from muograph.plotting.style import set_plot_style, subplots_4_figsize, subplots_2_figsize, n_bins, alpha
 from muograph.utils.device import DEVICE
 
 r"""
@@ -58,6 +57,7 @@ class Tracking(AbsSave):
         "measurement_type",
         "tracks_eff",
     ]
+    _maskable = ["_tracks", "_points", "_theta", "_theta_xy", "_angular_error", "_E", "tracks_eff"]
 
     def __init__(
         self,
@@ -350,48 +350,30 @@ class Tracking(AbsSave):
         zenith_mean = zenith_angle_deg.mean()
         energy_mean = energy_gev.mean()
 
-        sns.set_theme(
-            style="darkgrid",
-            rc={
-                "font.family": font["family"],
-                "font.size": font["size"],
-                "axes.labelsize": font["size"],  # Axis label font size
-                "axes.titlesize": font["size"],  # Axis title font size
-                "xtick.labelsize": font["size"],  # X-axis tick font size
-                "ytick.labelsize": font["size"],  # Y-axis tick font size
-            },
-        )
-
-        # Apply font globally using Matplotlib
-        import matplotlib
-
-        matplotlib.rc("font", **font)
+        set_plot_style()
 
         # Create subplots
-        fig, axs = plt.subplots(ncols=2, figsize=hist2_figsize)
-        fig.suptitle(f"Batch of {self.n_mu:,d} muons", fontsize=titlesize, fontweight="bold")
+        fig, axs = plt.subplots(ncols=2, figsize=subplots_2_figsize)
+        fig.suptitle(f"Batch of {self.n_mu:,d} muons")
 
         # Zenith angle plot
-        sns.histplot(
-            zenith_angle_deg,
-            bins=n_bins,
-            # kde=True,
-            color="blue",
-            alpha=alpha_sns,
-            ax=axs[0],
-        )
+        axs[0].hist(zenith_angle_deg, bins=n_bins, color="blue", edgecolor="black", alpha=alpha)
         axs[0].axvline(zenith_mean, color="red", linestyle="--", linewidth=1.5, label=f"Mean = {zenith_mean:.2f}°")
-        axs[0].set_xlabel(r"Zenith Angle $\theta$ [deg]", fontweight="bold")
-        axs[0].set_ylabel("Frequency [a.u]", fontweight="bold")
-        axs[0].legend(fontsize=font["size"])
+        axs[0].set_xlabel(r"Zenith Angle $\theta$ [deg]")
+        axs[0].set_ylabel("Frequency [a.u]")
+        axs[0].legend()
 
         # Energy plot
-        sns.histplot(energy_gev, bins=n_bins, color="purple", log_scale=(False, True), alpha=alpha_sns, ax=axs[1])
+        axs[1].hist(energy_gev, bins=n_bins, color="purple", edgecolor="black", log=True, alpha=alpha)
 
         axs[1].axvline(energy_mean, color="red", linestyle="--", linewidth=1.5, label=f"Mean = {energy_mean:.2f} GeV")
-        axs[1].set_xlabel("Energy [GeV]", fontweight="bold")
-        axs[1].set_ylabel("Frequency [a.u]", fontweight="bold")
-        axs[1].legend(fontsize=font["size"])
+        axs[1].set_xlabel(
+            "Energy [GeV]",
+        )
+        axs[1].set_ylabel(
+            "Frequency [a.u]",
+        )
+        axs[1].legend()
 
         # Adjust layout
         plt.tight_layout()
@@ -410,36 +392,16 @@ class Tracking(AbsSave):
         Args:
             figname (Optional[str], optional): Path to a file where to save the figure. Defaults to None.
         """
+        set_plot_style()
+
         # Extract data
         angular_error_deg = self.angular_error.detach().cpu().numpy() * 180 / math.pi
         mean = angular_error_deg.mean()
         std = angular_error_deg.std()
 
-        sns.set_theme(
-            style="darkgrid",
-            rc={
-                "font.family": font["family"],
-                "font.size": font["size"],
-                "axes.labelsize": font["size"],  # Axis label font size
-                "axes.titlesize": font["size"],  # Axis title font size
-                "xtick.labelsize": font["size"],  # X-axis tick font size
-                "ytick.labelsize": font["size"],  # Y-axis tick font size
-            },
-        )
-
-        # Apply font globally using Matplotlib
-        import matplotlib
-
-        matplotlib.rc("font", **font)
-
         # Create the plot
-        plt.figure(figsize=hist_figsize)
-        sns.histplot(
-            angular_error_deg,
-            bins=n_bins,
-            color="blue",
-            alpha=alpha_sns,
-        )
+        plt.figure()
+        plt.hist(angular_error_deg, bins=n_bins, color="blue", alpha=alpha, edgecolor="black")
 
         # Add mean line
         plt.axvline(mean, color="red", linestyle="--", linewidth=1.5, label=f"Mean = {mean:.2f}°")
@@ -449,10 +411,14 @@ class Tracking(AbsSave):
         plt.axvline(mean + std, color="green", linestyle=":", linewidth=1.5, label=r"$\pm 1\sigma$")
 
         # Add labels, title, and legend
-        plt.title(f"Batch of {self.n_mu:,d} muons\nAngular Resolution = {std:.3f}°", fontsize=titlesize, fontweight="bold")
-        plt.xlabel(r"Angular Error $\delta\theta$ [deg]", fontweight="bold")
-        plt.ylabel("Frequency [a.u.]", fontweight="bold")
-        plt.legend(fontsize=font["size"])
+        plt.title(f"Batch of {self.n_mu:,d} muons\nAngular Resolution = {std:.3f}°")
+        plt.xlabel(
+            r"Angular Error $\delta\theta$ [deg]",
+        )
+        plt.ylabel(
+            "Frequency [a.u.]",
+        )
+        plt.legend()
 
         # Adjust layout
         plt.tight_layout()
@@ -472,21 +438,7 @@ class Tracking(AbsSave):
             figname (Optional[str], optional): Path to a file where to save the figure. Defaults to None.
         """
 
-        import matplotlib
-
-        matplotlib.rc("font", **font)
-
-        sns.set_theme(
-            style="darkgrid",
-            rc={
-                "font.family": font["family"],
-                "font.size": font["size"],
-                "axes.labelsize": font["size"],  # Axis label font size
-                "axes.titlesize": font["size"],  # Axis title font size
-                "xtick.labelsize": font["size"],  # X-axis tick font size
-                "ytick.labelsize": font["size"],  # Y-axis tick font size
-            },
-        )
+        set_plot_style()
 
         if proj not in ("XZ", "YZ"):
             raise ValueError("proj argument must be XZ or YZ.")
@@ -496,24 +448,18 @@ class Tracking(AbsSave):
             "YZ": {"x": 1, "y": 2, "xlabel": r"$y$ [mm]", "ylabel": r"$z$ [mm]", "proj": "YZ"},
         }
 
-        fig, axs = plt.subplots(ncols=2, figsize=tracking_figsize)
-        fig.suptitle(
-            f"Tracking of event {event:,d}" + "\n" + f"{dim_map[proj]['proj']} projection, " + r"$\theta$ = " + f"{self.theta[event] * 180 / math.pi:.2f} deg",
-            fontweight="bold",
-        )
+        fig, axs = plt.subplots(ncols=3, gridspec_kw={"width_ratios": [1, 1, 0.25]})
+        axs[2].axis("off")  # Turn off the legend axis
+        fig.suptitle(f"Tracking of event {event:,d}\n{dim_map[proj]['proj']} projection, " r"$\theta$ = " + f"{self.theta[event] * 180 / math.pi:.2f} deg")
 
-        if (self.hits is None) & (hits is None):
+        if (self.hits is None) and (hits is None):
             raise ValueError("Provide hits as argument.")
-
         elif self.hits is not None:
             n_panels = self.hits.n_panels
-            # Get data as numpy array
             reco_hits_np = self.hits.reco_hits.detach().cpu().numpy()
             gen_hits_np = self.hits.gen_hits.detach().cpu().numpy()
-
-        elif hits is not None:
+        else:
             n_panels = hits.n_panels
-            # Get data as numpy array
             reco_hits_np = hits.reco_hits.detach().cpu().numpy()
             gen_hits_np = hits.gen_hits.detach().cpu().numpy()
 
@@ -522,44 +468,35 @@ class Tracking(AbsSave):
 
         hits_x = reco_hits_np[dim_map[proj]["x"], :, event]  # type: ignore
 
-        # Get detector span
-        x_span = abs(np.min(reco_hits_np[dim_map[proj]["x"]]) - np.max(reco_hits_np[dim_map[proj]["x"]]))  # type: ignore
+        # Calculate spans
+        x_span = abs(np.min(hits_x) - np.max(hits_x))
         y_span = abs(np.min(reco_hits_np[dim_map[proj]["y"]]) - np.max(reco_hits_np[dim_map[proj]["y"]]))  # type: ignore
 
-        # Assumes x_span > y_span
-        hits_x_span = abs(np.min(hits_x) - np.max(hits_x))
-        x_span = max(hits_x_span, y_span)
+        # Axis limits
+        x_extent = max(x_span / 1.5, 100)  # Enforce minimum extent of 100
 
-        # Set axis limits
         axs[0].set_xlim(
-            (
-                points_np[event, dim_map[proj]["x"]] - x_span / 2,  # type: ignore
-                points_np[event, dim_map[proj]["x"]] + x_span / 2,  # type: ignore
-            )
+            points_np[event, dim_map[proj]["x"]] - x_extent,  # type: ignore
+            points_np[event, dim_map[proj]["x"]] + x_extent,  # type: ignore
         )
-        for ax in axs:
-            ax.set_ylim(
-                (
-                    points_np[event, dim_map[proj]["y"]] - y_span / 1.8,  # type: ignore
-                    points_np[event, dim_map[proj]["y"]] + y_span / 1.8,  # type: ignore
-                )
-            )
-
         axs[1].set_xlim(
-            (
-                points_np[event, dim_map[proj]["x"]] - abs(np.min(hits_x) - np.max(hits_x)) / 1.5,  # type: ignore
-                points_np[event, dim_map[proj]["x"]] + abs(np.min(hits_x) - np.max(hits_x)) / 1.5,  # type: ignore
-            )
+            points_np[event, dim_map[proj]["x"]] - x_span / 1.5,  # type: ignore
+            points_np[event, dim_map[proj]["x"]] + x_span / 1.5,  # type: ignore
         )
+        for ax in axs[:2]:
+            ax.set_ylim(
+                points_np[event, dim_map[proj]["y"]] - y_span / 1.8,  # type: ignore
+                points_np[event, dim_map[proj]["y"]] + y_span / 1.8,  # type: ignore
+            )
 
-        # Plot detector panels if XZ or YZ projection
-        for ax in axs:
+        # Detector panels
+        for ax in axs[:2]:
             for i in range(n_panels):
                 label = "Detector panel" if i == 0 else None
                 ax.axhline(y=np.mean(reco_hits_np[dim_map[proj]["y"], i]), label=label, alpha=0.4)  # type: ignore
 
-        for ax in axs:
-            # Plot reco hits
+        # Plot hits, points, and tracks
+        for ax in axs[:2]:
             ax.scatter(
                 x=reco_hits_np[dim_map[proj]["x"], :, event],  # type: ignore
                 y=reco_hits_np[dim_map[proj]["y"], :, event],  # type: ignore
@@ -569,8 +506,6 @@ class Tracking(AbsSave):
                 alpha=0.5,
                 s=80,
             )
-
-            # Plot gen hits
             ax.scatter(
                 x=gen_hits_np[dim_map[proj]["x"], :, event],  # type: ignore
                 y=gen_hits_np[dim_map[proj]["y"], :, event],  # type: ignore
@@ -579,8 +514,6 @@ class Tracking(AbsSave):
                 marker="+",
                 alpha=0.5,
             )
-
-            # Plot fitted point
             ax.scatter(
                 x=points_np[event, dim_map[proj]["x"]],  # type: ignore
                 y=points_np[event, dim_map[proj]["y"]],  # type: ignore
@@ -589,10 +522,6 @@ class Tracking(AbsSave):
                 marker="x",
                 s=100,
             )
-
-            ax.set_xlabel(dim_map[proj]["xlabel"], fontweight="bold")
-            ax.set_ylabel(dim_map[proj]["ylabel"], fontweight="bold")
-
             ax.plot(
                 [
                     points_np[event, dim_map[proj]["x"]] - tracks_np[event, dim_map[proj]["x"]] * 1000,  # type: ignore
@@ -607,11 +536,23 @@ class Tracking(AbsSave):
                 linestyle="--",
                 label="Fitted track",
             )
+            ax.set_xlabel(
+                dim_map[proj]["xlabel"],
+            )
+            ax.set_ylabel(
+                dim_map[proj]["ylabel"],
+            )
 
         axs[0].set_aspect("equal")
 
+        # Collect unique labels and handles
+        handles, labels = axs[0].get_legend_handles_labels()
+        unique = dict(zip(labels, handles))  # Remove duplicates while preserving order
+
+        # Show the legend on the third axis
+        axs[2].legend(unique.values(), unique.keys(), loc="center left", frameon=False)
+
         plt.tight_layout()
-        axs[0].legend(loc="center right", bbox_to_anchor=(0.25, 1.2))
 
         if figname is not None:
             plt.savefig(figname, bbox_inches="tight")
@@ -634,14 +575,15 @@ class Tracking(AbsSave):
 
         # Set attributes without setter method to None
         self._reset_vars()
+        n_muons = self.tracks.size(0)
 
-        n_muons = self.tracks.size()[0]
-        # Loop over class attributes and apply the mask is Tensor
-        for var in vars(self).keys():
-            data = getattr(self, var)
-            if isinstance(data, Tensor):
-                if data.size()[0] == n_muons:
-                    setattr(self, var, data[mask])
+        for var in self._maskable:
+            data = getattr(self, var, None)
+            if isinstance(data, Tensor) and data.size(0) == n_muons:
+                setattr(self, var, data[mask])
+
+        if self.hits is not None:
+            self.hits._filter_events(mask)
 
     @property
     def df(self) -> pd.DataFrame:
@@ -932,78 +874,60 @@ class TrackingMST:
     ) -> None:
         r"""
         Plot the zenith angle and energy of the reconstructed tracks.
+
         Args:
             figname (str): If provided, save the figure at figname.
         """
 
-        matplotlib.rc("font", **font)
+        set_plot_style()
 
-        sns.set_theme(
-            style="darkgrid",
-            rc={
-                "font.family": font["family"],
-                "font.size": font["size"],
-                "axes.labelsize": font["size"],  # Axis label font size
-                "axes.titlesize": font["size"],  # Axis title font size
-                "xtick.labelsize": font["size"],  # X-axis tick font size
-                "ytick.labelsize": font["size"],  # Y-axis tick font size
-            },
-        )
-
-        fig, axs = plt.subplots(ncols=2, nrows=2, figsize=(2 * hist_figsize[0], 2 * hist_figsize[1]))
+        fig, axs = plt.subplots(ncols=2, nrows=2, figsize=subplots_4_figsize)
         axs = axs.ravel()
 
-        # Fig title
-        fig.suptitle(f"Batch of {self.n_mu:,d} muons", fontsize=titlesize, fontweight="bold")
+        fig.suptitle(f"Batch of {self.n_mu:,d} muons")
 
         # Zenith angle
-        sns.histplot(data=self.theta_in.detach().cpu().detach().numpy() * 180 / math.pi, alpha=alpha_sns, bins=n_bins, ax=axs[0], color="blue")
-
+        data_theta = self.theta_in.detach().cpu().numpy() * 180 / math.pi
+        axs[0].hist(data_theta, bins=n_bins, color="blue", edgecolor="black", alpha=alpha)
         axs[0].axvline(
-            x=self.theta_in.mean().detach().cpu().numpy() * 180 / math.pi,
-            label=f"mean = {self.theta_in.mean().detach().cpu().numpy() * 180 / math.pi:.1f} deg",
+            x=data_theta.mean(),
+            label=f"mean = {data_theta.mean():.1f} deg",
             color="red",
         )
-        axs[0].set_xlabel(r" Zenith angle $\theta$ [deg]", fontweight="bold")
+        axs[0].set_xlabel(
+            r" Zenith angle $\theta$ [deg]",
+        )
 
         # Energy
-        sns.histplot(
-            data=self.E.detach().cpu().detach().numpy() / 1000,
-            alpha=alpha_sns,
-            bins=n_bins,
-            ax=axs[1],
-            log_scale=(False, True),
-            color="purple",
-        )
+        data_E = self.E.detach().cpu().numpy() / 1000
+        axs[1].hist(data_E, bins=n_bins, log=True, color="purple", edgecolor="black", alpha=alpha)
         axs[1].axvline(
-            x=self.E.mean().detach().cpu().numpy() / 1000,
-            label=f"mean = {self.E.mean().detach().cpu().numpy() / 1000:.2f} GeV",
+            x=data_E.mean(),
+            label=f"mean = {data_E.mean():.2f} GeV",
             color="red",
         )
-        axs[1].set_xlabel(r" Energy [GeV]", fontweight="bold")
+        axs[1].set_xlabel(
+            r" Energy [GeV]",
+        )
 
         # Scattering angle
-        sns.histplot(
-            data=self.dtheta.detach().cpu().detach().numpy() * 180 / math.pi,
-            alpha=alpha_sns,
-            bins=n_bins,
-            ax=axs[2],
-            log_scale=(False, True),
-            color="green",
-        )
+        data_dtheta = self.dtheta.detach().cpu().numpy() * 180 / math.pi
+        axs[2].hist(data_dtheta, bins=n_bins, log=True, color="green", edgecolor="black", alpha=alpha)
         axs[2].axvline(
-            x=self.dtheta.mean().detach().cpu().numpy() * 180 / math.pi,
-            label=f"mean = {self.dtheta.mean().detach().cpu().numpy() * 180 / math.pi:.3f} deg",
+            x=data_dtheta.mean(),
+            label=f"mean = {data_dtheta.mean():.3f} deg",
             color="red",
         )
-        axs[2].set_xlabel(r" Scattering angle $\delta\theta$ [deg]", fontweight="bold", fontsize=font["size"])
+        axs[2].set_xlabel(r" Scattering angle $\delta\theta$ [deg]")
 
+        # Style formatting
         for ax in axs[:-1]:
             ax.grid(visible=True, color="grey", linestyle="--", linewidth=0.5)
-            ax.set_ylabel("Frequency [a.u]", fontweight="bold", fontsize=font["size"])
-            ax.tick_params(axis="both", labelsize=labelsize)
+            ax.set_ylabel("Frequency [a.u]")
+            ax.tick_params(axis="both")
             ax.legend()
 
+        # Remove unused subplot
         axs[-1].remove()
         axs[-1] = None
 
@@ -1085,7 +1009,7 @@ class TrackingMST:
             voi (Optional[Volume], optional): An instance of the Volume class. If provided, gets represented on the plot. Defaults to None.
             figname (Optional[str], optional): If provided, the figure is saved as `figname`. Defaults to None.
         """
-        configure_plot_theme(font=font)  # type: ignore
+        set_plot_style()
 
         # Numpy data
         points_in_np = self.points_in.detach().cpu().numpy()
@@ -1107,14 +1031,13 @@ class TrackingMST:
 
         dim_xy = (int(dim_map[proj]["x"]), int(dim_map[proj]["y"]))
 
-        fig, ax = plt.subplots(figsize=tracking_figsize)
+        fig, ax = plt.subplots()
         fig.suptitle(
             f"Tracking of event {event:,d}"
             + "\n"
             + f"{dim_map[proj]['proj']} projection, "
             + r"$\delta\theta$ = "
             + f"{self.dtheta[event] * 180 / math.pi:.2f} deg",
-            fontweight="bold",
         )
 
         # Get plot xy span
@@ -1155,8 +1078,8 @@ class TrackingMST:
             bbox_to_anchor=(1.0, 0.7),
         )
         ax.set_aspect("equal")
-        ax.set_xlabel(f"{dim_map[proj]['xlabel']}", fontweight="bold")
-        ax.set_ylabel(f"{dim_map[proj]['ylabel']}", fontweight="bold")
+        ax.set_xlabel(f"{dim_map[proj]['xlabel']}")
+        ax.set_ylabel(f"{dim_map[proj]['ylabel']}")
 
         if figname is not None:
             plt.savefig(figname, bbox_inches="tight")

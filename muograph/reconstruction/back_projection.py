@@ -4,7 +4,6 @@ from muograph.tracking.tracking import Tracking
 from muograph.reconstruction.asr import ASR
 from muograph.plotting.voxel import VoxelPlotting
 from muograph.plotting.plotting import plot_2d_vector
-from muograph.plotting.params import titlesize
 
 import math
 import numpy as np
@@ -499,6 +498,10 @@ class BackProjection(AbsSave, VoxelPlotting):
         event: Optional[int] = None,
         filename: Optional[str] = None,
     ) -> None:
+        from muograph.plotting.style import set_plot_style
+
+        set_plot_style()
+
         # Compute figure size based on XY ratio
         figsize = self.get_fig_size(
             voi=self.voi,
@@ -557,7 +560,7 @@ class BackProjection(AbsSave, VoxelPlotting):
             ax,
             vector=track_2D_norm,
             origin=point_2D,
-            scale=1 / (self.voi.vox_width * 5),
+            scale=1 / (float(self.voi.vox_width[0]) * 5),
         )
 
         # Plot muon position entering volume
@@ -591,15 +594,14 @@ class BackProjection(AbsSave, VoxelPlotting):
         )
 
         if n_triggered_voxel > 0:
-            ax.legend()
-            title = f"Muon event display in {mapping[dim]['projection']} for event {event}\n{n_triggered_voxel} triggered voxels"
+            ax.legend(loc="center left", bbox_to_anchor=(1.05, 0.5), borderaxespad=0.0, frameon=False)
+            title = f"Muon event display in {mapping[dim]['projection']} for event {event:,d}\n{n_triggered_voxel} triggered voxels"
         else:
-            title = f"Muon event display in {mapping[dim]['projection']} for event {event}\nno triggered voxels"
+            title = f"Muon event display in {mapping[dim]['projection']} for event {event:,d}\nno triggered voxels"
 
         # Plot title
         ax.set_title(
             title,
-            fontsize=titlesize,
             fontweight="bold",
         )
 
@@ -700,14 +702,3 @@ class BackProjection(AbsSave, VoxelPlotting):
     @score.setter
     def score(self, value: Tensor) -> None:
         self._score = value
-
-    # @property
-    # def score_method(self) -> partial:
-    #     r"""
-    #     The method computing voxel-wise density predictions from the number muons passing through each voxel.
-    #     """
-    #     return self._score_method
-
-    # @score_method.setter
-    # def score_method(self, value: partial) -> None:
-    #     self._score_method = value

@@ -13,10 +13,9 @@ from muograph.utils.save import AbsSave
 from muograph.tracking.tracking import TrackingMST
 from muograph.volume.volume import Volume
 from muograph.reconstruction.voxel_inferer import AbsVoxelInferer
-from muograph.plotting.params import configure_plot_theme, font, tracking_figsize
+from muograph.plotting.style import set_plot_style
 
 value_type = Union[partial, Tuple[float, float], bool]
-
 
 r"""
 Provides class for computing voxelized scattering density predictions
@@ -41,7 +40,7 @@ class ASR(AbsSave, AbsVoxelInferer):
 
     _vars_to_save = ["triggered_voxels"]
 
-    _vars_to_load = ["trigerred_voxels"]
+    _vars_to_load = ["triggered_voxels"]
 
     def __init__(
         self,
@@ -50,15 +49,14 @@ class ASR(AbsSave, AbsVoxelInferer):
         output_dir: Optional[str] = None,
         triggered_vox_file: Optional[str] = None,
     ) -> None:
-        r"""Initializes the ASR object with either instances of the `Volume` and `TrackingMST` class
+        r"""
+        Initializes the ASR object with instances of `Volume` and `TrackingMST`.
 
         Args:
-            voi (Volume): The volume of interest, as an instance of the `Volume` class.
-            tracking (TrackingMST): The muon tracks, as an instance of the `TrackingMST` class.
-            output_dir (Optional[str], optional): Path to a directory where to save the triggered voxels
-            as a hdf5 file. Defaults to None.
-            triggered_vox_file (Optional[str], optional): Path to a hdf5 file where to load the triggered voxels
-            from. Defaults to None.
+            voi (Volume): Volume of interest.
+            tracking (TrackingMST): Muon tracks.
+            output_dir (Optional[str], optional): Directory to save triggered voxels. Defaults to None.
+            triggered_vox_file (Optional[str], optional): HDF5 file to load triggered voxels from. Defaults to None.
         """
 
         AbsSave.__init__(self, output_dir=output_dir)
@@ -83,7 +81,7 @@ class ASR(AbsSave, AbsVoxelInferer):
         Method for saving triggered voxel as a hdf5 file.
         """
         with h5py.File(directory / filename, "w") as f:
-            print("Saving trigerred voxels to {}".format(directory / filename))
+            print(f"Saving triggered voxels to {directory / filename}")
             for i, indices in enumerate(progress_bar(triggered_voxels)):
                 f.create_dataset("{}".format(i), data=indices)
         f.close()
@@ -94,7 +92,7 @@ class ASR(AbsSave, AbsVoxelInferer):
         Method for loading triggered voxel from hdf5 file.
         """
         with h5py.File(triggered_vox_file, "r") as f:
-            print("Loading trigerred voxels from {}".format(triggered_vox_file))
+            print(f"Loading triggered voxels from {triggered_vox_file}")
             triggered_voxels = [f["{}".format(i)][:] for i, _ in enumerate(progress_bar(f.keys()))]
         f.close()
         return triggered_voxels
@@ -125,7 +123,7 @@ class ASR(AbsSave, AbsVoxelInferer):
             for the OUTGOING tracks.
         """
         n_mu = theta_xy_in[0].size(0)
-        xyz_in_voi, xyz_out_voi = torch.zeros((n_mu, 2, 3), device=theta_xy_in[0].device), torch.zeros((n_mu, 2, 3), device=theta_xy_in[0].device)
+        xyz_in_voi, xyz_out_voi = (torch.zeros((n_mu, 2, 3), device=theta_xy_in[0].device), torch.zeros((n_mu, 2, 3), device=theta_xy_in[0].device))
 
         for point, theta_xy, pm, xyz in zip(
             [points_in, points_out],
@@ -149,47 +147,56 @@ class ASR(AbsSave, AbsVoxelInferer):
         theta_xy_in: Tuple[Tensor, Tensor],
         theta_xy_out: Tuple[Tensor, Tensor],
         n_points_per_z_layer: int = 7,
+        muon_batch_size: int = 100_000,
     ) -> Tuple[Tensor, Tensor]:
         r"""
         Computes a discretized version of the muon incoming and outgoing track
-        within the volume.
-        The number of points is defined as n_points = n_points_per_z_layer * n_z_layer,
-        where n_z_layer is the number of voxels along z.
+        within the volume using batched processing to reduce memory usage.
 
         Args:
-             - voi (Volume): Instance of the volume class.
-             - xyz_in_out_voi (Tensor): The location of muons when entering/exiting the volume for incoming and outgoing tracks
-             - theta_xy_in (Tuple[Tensor, Tensor]):  The incoming muon zenith angle projections in the XZ and YZ plane.
-             - theta_xy_out (Tuple[Tensor, Tensor]):  The outcoming muon zenith angle projections in the XZ and YZ plane.
-             - n_points_per_z_layer (int): The number of locations per voxel. Must be not too small (all the voxels are not triggered),
-            nor too large (computationaly expensive). Default value is set at 3  point per voxel.
+            - voi (Volume): Instance of the volume class.
+            - xyz_in_out_voi (Tuple[Tensor, Tensor]): The location of muons when entering/exiting the volume for incoming and outgoing tracks.
+            - theta_xy_in (Tuple[Tensor, Tensor]): The incoming muon zenith angle projections in the XZ and YZ plane.
+            - theta_xy_out (Tuple[Tensor, Tensor]): The outgoing muon zenith angle projections in the XZ and YZ plane.
+            - n_points_per_z_layer (int): Number of points sampled per voxel along the Z-axis.
+            - muon_batch_size (int): Number of muons to process per batch.
 
         Returns:
-             - The discretized incoming and outgoing tracks with size (3, n_points, n_mu)
+            - Tuple[Tensor, Tensor]: Discretized incoming and outgoing tracks of shape (3, n_points, n_mu)
         """
+
+        device = theta_xy_in[0].device
         n_mu = theta_xy_in[0].size(0)
         n_points = (voi.n_vox_xyz[2] + 1) * n_points_per_z_layer
 
-        # Compute the z locations cross the voi
-        z_discrete = (
-            torch.linspace(torch.min(voi.voxel_edges[0, 0, :, :, 2]), torch.max(voi.voxel_edges[0, 0, :, :, 2]), n_points, device=theta_xy_out[0].device)[  # type: ignore[call-overload]
-                :, None
-            ]
-        ).expand(-1, n_mu)
+        # Compute z values across the entire volume
+        z_discrete = torch.linspace(torch.min(voi.voxel_edges[0, 0, :, :, 2]), torch.max(voi.voxel_edges[0, 0, :, :, 2]), n_points, device=device)[
+            :, None
+        ]  # Shape: (n_points, 1)
 
-        xyz_discrete_in, xyz_discrete_out = torch.ones((3, n_points, n_mu), device=theta_xy_out[0].device), torch.ones(
-            (3, n_points, n_mu), device=theta_xy_out[0].device
-        )
+        # Allocate full output tensors
+        xyz_discrete_in = torch.empty((3, n_points, n_mu), device=device)
+        xyz_discrete_out = torch.empty((3, n_points, n_mu), device=device)
 
-        for xyz_discrete, theta_in_out, xyz_in_out in zip(
-            [xyz_discrete_in, xyz_discrete_out],
-            [theta_xy_in, theta_xy_out],
-            xyz_in_out_voi,
-        ):
-            for dim, theta in zip([0, 1], theta_in_out):
-                xyz_discrete[dim] = torch.abs(z_discrete - xyz_in_out[:, 0, 2]) * torch.tan(theta) + xyz_in_out[:, 0, dim]
+        for start in range(0, n_mu, muon_batch_size):
+            end = min(start + muon_batch_size, n_mu)
+            batch_slice = slice(start, end)
 
-            xyz_discrete[2] = z_discrete
+            # z_discrete expands across batch
+            z_batch = z_discrete.expand(-1, end - start)  # (n_points, batch_size)
+
+            for xyz_discrete, theta_in_out, xyz_in_out in zip(
+                [xyz_discrete_in[:, :, batch_slice], xyz_discrete_out[:, :, batch_slice]],
+                [theta_xy_in, theta_xy_out],
+                xyz_in_out_voi,
+            ):
+                xyz_in_out_batch = xyz_in_out[batch_slice]  # (batch_size, 1, 3)
+
+                for dim, theta in zip([0, 1], theta_in_out):
+                    theta_batch = theta[batch_slice]  # (batch_size,)
+                    xyz_discrete[dim] = torch.abs(z_batch - xyz_in_out_batch[:, 0, 2]) * torch.tan(theta_batch) + xyz_in_out_batch[:, 0, dim]
+
+                xyz_discrete[2] = z_batch
 
         return xyz_discrete_in, xyz_discrete_out
 
@@ -208,7 +215,7 @@ class ASR(AbsSave, AbsVoxelInferer):
              - xyz_out_voi (Tensor): The location of muons when entering/exiting the volume for the outgoing track.
 
         Returns:
-             - sub_vol_indices_min_max (List[Tensor]): List containing the voxel indices.
+             - List[List[Tensor]]: Voxel indices defining sub-volumes per muon event.
         """
         # Precompute voxel boundaries for simpler condition checks
         voxel_edges_x_min = voi.voxel_edges[:, :, 0, 0, 0]
@@ -216,7 +223,7 @@ class ASR(AbsSave, AbsVoxelInferer):
         voxel_edges_y_min = voi.voxel_edges[:, :, 0, 0, 1]
         voxel_edges_y_max = voi.voxel_edges[:, :, 0, 1, 1]
 
-        # Get the min, max x and y coordinnates of the tracks entering the voi
+        # Get the min, max x and y coordinates of the tracks entering the voi
         xyz_min = torch.min(torch.cat([xyz_in_voi, xyz_out_voi], dim=1), dim=1).values
         xyz_max = torch.max(torch.cat([xyz_in_voi, xyz_out_voi], dim=1), dim=1).values
 
@@ -267,8 +274,7 @@ class ASR(AbsSave, AbsVoxelInferer):
              - xyz_discrete_out (Tensor): The discretized outgoing tracks with size (3, n_points, n_mu)
 
         Returns:
-             - triggererd_voxels (List[Tensor]): List with len() = n_mu, containing the indices
-             of the triggered voxels as a Tensor (with size [n_triggered_vox,3])
+             - triggererd_voxels List[np.ndarray]: List of voxel indices per muon event.
         """
 
         triggered_voxels = []
@@ -319,7 +325,7 @@ class ASR(AbsSave, AbsVoxelInferer):
         asr_params: Dict[str, value_type],
     ) -> str:
         r"""
-        Returns the name of the bca given its parameters.
+        Returns a string representing the ASR configuration based on its parameters.
         """
 
         def get_partial_name_args(func: partial) -> str:
@@ -350,6 +356,8 @@ class ASR(AbsSave, AbsVoxelInferer):
         theta_xy_out: Tuple[Tensor, Tensor],
     ) -> List[np.ndarray]:
         """
+        Computes the list of triggered voxels per muon event.
+
         Gets the `xyz` indices of the voxels along each muon path, as a list of np.ndarray.
         e.g triggered_voxels[i] is an np.ndarray with shape (n, 3) where n is the number
         of voxels along the muon path for the muon event i.
@@ -362,7 +370,7 @@ class ASR(AbsSave, AbsVoxelInferer):
              - theta_xy_out (Tensor): The outgoing projected zenith angle in XZ and YZ plane.
 
         Returns:
-             - triggered_voxels (List[np.ndarray]): the list of triggered voxels.
+             - triggered_voxels (List[np.ndarray]): List of voxel indices (shape: (n, 3)) per muon.
         """
         xyz_in_voi, xyz_out_voi = ASR._compute_xyz_in_out(
             points_in=points_in,
@@ -371,7 +379,6 @@ class ASR(AbsSave, AbsVoxelInferer):
             theta_xy_in=theta_xy_in,
             theta_xy_out=theta_xy_out,
         )
-
         xyz_discrete_in, xyz_discrete_out = ASR._compute_discrete_tracks(
             voi=voi,
             xyz_in_out_voi=(xyz_in_voi, xyz_out_voi),
@@ -379,7 +386,6 @@ class ASR(AbsSave, AbsVoxelInferer):
             theta_xy_out=theta_xy_out,
             n_points_per_z_layer=7,
         )
-
         sub_vol_indices_min_max = ASR._find_sub_volume(voi=voi, xyz_in_voi=xyz_in_voi, xyz_out_voi=xyz_out_voi)
 
         return ASR._find_triggered_voxels(
@@ -394,7 +400,7 @@ class ASR(AbsSave, AbsVoxelInferer):
         Computes the density predictions per voxel.
 
         Returns:
-            vox_density_pred (Tensor): voxelwise density predictions
+            vox_density_preds (Tensor): Voxel-wise density predictions
         """
 
         score_list: List[List[List[List]]] = [
@@ -404,7 +410,10 @@ class ASR(AbsSave, AbsVoxelInferer):
         if self._asr_params["use_p"]:
             score = np.log(self.tracks.dtheta.detach().cpu().numpy() * self.tracks.E.detach().cpu().numpy())
         else:
+            # score = np.log(self.tracks.dtheta.detach().cpu().numpy())
             score = self.tracks.dtheta.detach().cpu().numpy()
+            # score = self.theta_xy_in[0].detach().cpu().numpy()
+            # score = self.tracks.theta_in.detach().cpu().numpy()
 
         mask_E = (self.tracks.E > self.asr_params["p_range"][0]) & (  # type: ignore
             self.tracks.E < self.asr_params["p_range"][1]  # type: ignore
@@ -417,6 +426,8 @@ class ASR(AbsSave, AbsVoxelInferer):
             mask = mask_E & mask_theta
         else:
             mask = mask_E
+
+        self.n_mu_per_vox_test = torch.empty(self.voi.n_vox_xyz)
 
         print("\nAssigning voxels score")
         for i, vox_list in enumerate(progress_bar(self.triggered_voxels)):
@@ -432,10 +443,10 @@ class ASR(AbsSave, AbsVoxelInferer):
                 for k in range(self.voi.n_vox_xyz[2]):
                     if score_list[i][j][k] != []:
                         vox_density_preds[i, j, k] = self.asr_params["score_method"](score_list[i][j][k])  # type: ignore
-
+                        self.n_mu_per_vox_test[i, j, k] = len(score_list[i][j][k])
         if vox_density_preds.isnan().any():
             raise ValueError("Prediction contains NaN values")
-
+        self.score_list = score_list
         self._recompute_preds = False
 
         if self.asr_params["use_p"]:  # type: ignore
@@ -446,6 +457,12 @@ class ASR(AbsSave, AbsVoxelInferer):
     def get_n_mu_per_vox(
         self,
     ) -> Tensor:
+        r"""
+        Computes the number of muons that passed through each voxel.
+
+        Returns:
+            Tensor: Voxel-wise count of muons.
+        """
         n_mu_per_vox = torch.zeros(self.voi.n_vox_xyz)
 
         all_voxels = np.vstack([ev for ev in self.triggered_voxels if len(ev) > 0])
@@ -456,7 +473,15 @@ class ASR(AbsSave, AbsVoxelInferer):
         return n_mu_per_vox
 
     def plot_asr_event(self, event: int, proj: str = "XZ", figname: Optional[str] = None) -> None:
-        configure_plot_theme(font=font)  # type: ignore
+        """
+        Plots a 2D projection (XZ or YZ) of a muon event, including tracks and triggered voxels.
+
+        Args:
+            event (int): Index of the event to plot.
+            proj (str): Projection plane ("XZ" or "YZ"). Defaults to "XZ".
+            figname (Optional[str]): Path to save the figure. If None, shows plot. Defaults to None.
+        """
+        set_plot_style()
 
         # Inidices and labels
         dim_map: Dict[str, Dict[str, Union[str, int]]] = {
@@ -473,14 +498,13 @@ class ASR(AbsSave, AbsVoxelInferer):
         # Y span
         y_span = abs(points_in_np[event, 2] - points_out_np[event, 2])
 
-        fig, ax = plt.subplots(figsize=tracking_figsize)
+        fig, ax = plt.subplots()
         if self.triggered_voxels[event].shape[0] > 0:
-            n_trig_vox = f"# triggered voxels = {self.triggered_voxels[event].shape[0]}"
+            n_trig_vox = f"nb triggered voxels = {self.triggered_voxels[event].shape[0]}"
         else:
             n_trig_vox = "no voxels triggered"
         fig.suptitle(
             f"Tracking of event {event:,d}" + "\n" + r"$\delta\theta$ = " + f"{self.tracks.dtheta[event] * 180 / math.pi:.2f} deg, " + n_trig_vox,
-            fontweight="bold",
             y=1.05,
         )
 
@@ -498,11 +522,11 @@ class ASR(AbsSave, AbsVoxelInferer):
                 vox_x = self.voi.voxel_centers[ix, 0, 0, 0] if proj == "XZ" else self.voi.voxel_centers[0, ix, 0, 1]
                 label = "Triggered voxel" if i == 0 else None
                 ax.scatter(
-                    x=vox_x.detach().cpu(),
-                    y=self.voi.voxel_centers[0, 0, iy, 2].detach().cpu(),
-                    color="blue",
+                    x=vox_x.detach().cpu().numpy(),
+                    y=self.voi.voxel_centers[0, 0, iy, 2].detach().cpu().numpy(),
+                    color="red",
                     label=label,
-                    alpha=0.3,
+                    alpha=0.5,
                 )
 
         # Plot tracks
@@ -557,7 +581,7 @@ class ASR(AbsSave, AbsVoxelInferer):
         Sets the parameters of the ASR algorithm.
         Args:
             - Dict containing the parameters name and value. Only parameters with
-            valid name and non `None` values wil be updated.
+            valid name and non `None` values will be updated.
         """
         for key in value.keys():
             if key in self._asr_params.keys():

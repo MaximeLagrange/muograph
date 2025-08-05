@@ -12,10 +12,9 @@ from muograph.reconstruction.poca import POCA
 from muograph.volume.volume import Volume
 from muograph.reconstruction.voxel_inferer import AbsVoxelInferer
 
-
 value_type = Union[float, partial, Tuple[float, float], bool, int]
 bca_params_type = Dict[str, value_type]
-
+P_MEAN = 4.0  # GeV
 
 r"""
 Provides class for computing voxelized scattering density predictions
@@ -58,7 +57,13 @@ class BCA(POCA, AbsVoxelInferer):
             and `hit_per_voxel` attributes in a hdf5 file.
         """
         AbsVoxelInferer.__init__(self, voi=voi, tracking=tracking)
-        POCA.__init__(self, tracking=tracking, voi=voi, output_dir=output_dir, filename=filename)
+        POCA.__init__(
+            self,
+            tracking=tracking,
+            voi=voi,
+            output_dir=output_dir,
+            filename=filename,
+        )
 
         self.bca_indices: Tensor = deepcopy(self.poca_indices)
         self.bca_poca_points: Tensor = deepcopy(self.poca_points)
@@ -98,8 +103,14 @@ class BCA(POCA, AbsVoxelInferer):
         dtheta = dtheta.unsqueeze(1)
         p = p.unsqueeze(0)
 
+        # Normalize the momentum
+        if not (p == 1).all():
+            p_norm = p / P_MEAN
+        else:
+            p_norm = p
+
         if p is not None:
-            weights = dtheta * p * (dtheta * p).T
+            weights = dtheta * p_norm * (dtheta * p_norm).T
         else:
             weights = dtheta * dtheta.T
 
@@ -234,7 +245,8 @@ class BCA(POCA, AbsVoxelInferer):
         full_metric = torch.tril(
             torch.where(
                 (distance_metric != 0) & (scattering_weights != 0),
-                distance_metric / scattering_weights,
+                # distance_metric / scattering_weights,
+                scattering_weights / distance_metric,
                 0.0,
             )
         )
@@ -271,7 +283,7 @@ class BCA(POCA, AbsVoxelInferer):
              - score_list (List) List containing lists of scores for each voxel.
         """
 
-        # Initialize score tensor with zeros
+        # Initialize score tensor with large negative values
         score_list = torch.zeros(voi.n_vox_xyz, dtype=torch.int16, device=DEVICE).tolist()
 
         # Compute voxel indices and POCA point counts
@@ -280,7 +292,7 @@ class BCA(POCA, AbsVoxelInferer):
         unique_voxels, counts = torch.unique(flat_vox_indices, return_counts=True)
 
         # Filter voxels with at least n_min_per_vox points
-        valid_voxels = unique_voxels[counts > n_min_per_vox]
+        valid_voxels = unique_voxels[counts >= n_min_per_vox]
 
         # Convert flat indices back to 3D coordinates
         voxel_coords = torch.stack(
@@ -337,6 +349,10 @@ class BCA(POCA, AbsVoxelInferer):
                         final_voxel_scores[i, j, k] = score_method(voxel_scores)
                         # Count the number of POCA points (hits) in this voxel
                         hit_per_voxel[i, j, k] = len(voxel_scores)
+
+        # replace zero values by minimum value
+        min_value = torch.min(final_voxel_scores[final_voxel_scores != 0.0])
+        final_voxel_scores[final_voxel_scores == 0.0] = min_value
 
         return final_voxel_scores, hit_per_voxel
 
@@ -454,6 +470,7 @@ class BCA(POCA, AbsVoxelInferer):
         use_p = "use_p_{}".format(self.bca_params["use_p"])
 
         bca_name = method + metric + dtheta + dp + n_min_max + use_p
+        bca_name = bca_name.replace(".", "p")
         return bca_name
 
     @property

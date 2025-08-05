@@ -2,9 +2,13 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 colors: List[str] = list(mpl.colors.TABLEAU_COLORS.values())  # type: ignore
+subplots_4_figsize: Tuple[float, float] = (9, 6)
+subplots_2_figsize: Tuple[float, float] = (8, 3.5)
+n_bins: int = 50
+alpha: float = 0.5
 
 
 def set_plot_style() -> None:

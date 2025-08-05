@@ -376,10 +376,12 @@ class VoxelPlotting:
                     # xerr=voi.vox_width[dim_mapping[dim]["xy_dims"][0]].detach().cpu().numpy() / 2,
                     fmt="+",
                     markersize=4,
-                    elinewidth=1,
-                    capsize=2,
+                    # elinewidth=1,
+                    # capsize=2,
                     color="black",
                     label=r"Projection $z \rightarrow \mu$ count",
+                    linestyle="solid",
+                    alpha=0.4,
                 )
                 ax_histy.errorbar(
                     dim_mapping[dim]["y_data"],
@@ -387,9 +389,11 @@ class VoxelPlotting:
                     # yerr=voi.vox_width[dim_mapping[dim]["xy_dims"][1]].detach().cpu().numpy() / 2,
                     fmt="+",
                     markersize=4,
-                    elinewidth=1,
-                    capsize=2,
+                    # elinewidth=1,
+                    # capsize=2,
                     color="black",
+                    linestyle="solid",
+                    alpha=0.4,
                 )
 
             else:
@@ -501,6 +505,8 @@ class VoxelPlotting:
         Returns:
             - None: Displays the generated plots and optionally saves them to a file.
         """
+
+        set_plot_style()
 
         # Define colormap
         cmap = cmap + "_r" if reverse else cmap
@@ -655,10 +661,10 @@ class VoxelPlotting:
 
             # set axes x label
             if (i % ncols == 0) | (i == 0):
-                axs[i].set_ylabel(y_label, fontweight="bold")
+                axs[i].set_ylabel(y_label)
             # set axes y label
             if i >= nplots - ncols:
-                axs[i].set_xlabel(x_label, fontweight="bold")
+                axs[i].set_xlabel(x_label)
 
             axs[i].tick_params(axis="both")
 
@@ -670,7 +676,7 @@ class VoxelPlotting:
         # Add color bar
         cbar_ax = fig.add_axes(rect=(1.01, 0.15, 0.05, 0.7))
         cbar = fig.colorbar(im, cax=cbar_ax)
-        cbar.set_label(pred_label + " " + pred_unit, fontweight="bold")  # Colorbar label
+        cbar.set_label(pred_label + " " + pred_unit)  # Colorbar label
 
         plt.subplots_adjust(right=0.99)
 
@@ -679,7 +685,6 @@ class VoxelPlotting:
             fig_suptitle + f"\nvoxel size = {tuple(voi.vox_width.detach().cpu().numpy())} {d_unit}",
             x=0.58,
             y=1,
-            fontweight="bold",
             va="top",
         )
 
@@ -879,7 +884,7 @@ class VoxelPlotting:
                 xmin=extent_x[0],
                 xmax=extent_x[1],
             )
-        plt.show()
+        # plt.show()
 
     @staticmethod
     def plot_3D_to_1D(

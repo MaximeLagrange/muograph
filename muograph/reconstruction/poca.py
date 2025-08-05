@@ -2,11 +2,10 @@ import torch
 from torch import Tensor
 from copy import deepcopy
 from typing import Optional, Dict, Union
-import matplotlib
+from functools import partial
 import matplotlib.pyplot as plt
 from fastprogress import progress_bar
 import numpy as np
-import seaborn as sns
 import math
 
 from muograph.utils.save import AbsSave
@@ -15,7 +14,8 @@ from muograph.utils.datatype import dtype_track, dtype_n
 from muograph.volume.volume import Volume
 from muograph.tracking.tracking import TrackingMST
 from muograph.plotting.voxel import VoxelPlotting
-from muograph.plotting.params import font
+from muograph.plotting.style import set_plot_style
+from muograph.utils.tools import normalize
 
 
 r"""
@@ -38,6 +38,7 @@ class POCA(AbsSave, VoxelPlotting):
     _n_poca_per_vox: Optional[Tensor] = None  # (nx, ny, nz)
     _poca_indices: Optional[Tensor] = None  # (mu, 3)
     _mask_in_voi: Optional[Tensor] = None  # (mu)
+    _poca_xyz_voxel_preds: Optional[Tensor] = None  # (nvox_x, nvox_y, nvox_z)
 
     _batch_size: int = 2048
 
@@ -53,6 +54,13 @@ class POCA(AbsSave, VoxelPlotting):
         "poca_indices",
     ]
 
+    _poca_params = {
+        "score": None,
+        "score_method": partial(torch.std, dim=0),
+    }
+
+    _recompute_preds: bool = True
+
     def __init__(
         self,
         tracking: Optional[TrackingMST] = None,
@@ -61,19 +69,15 @@ class POCA(AbsSave, VoxelPlotting):
         output_dir: Optional[str] = None,
         filename: Optional[str] = None,
     ) -> None:
-        r"""
-        Initializes the POCA object with either an instance of the TrackingMST class or a
-        poca.hdf5 file.
+        """
+        Initializes the POCA object with either a TrackingMST instance or an HDF5 file.
 
         Args:
-            - tracking (Optional[TrackingMST]): Instance of the TrackingMST class.
-            - voi (Optional[Volume]): Instance of the Volume class. If provided, muon events with
-            poca locations outside the voi will be filtered out, the number of poca locations per voxel
-            `n_poca_per_vox` as well as the voxel indices of each poca location will be computed.
-            poca_file (Optional[str]): The path to the poca.hdf5 to load attributes from.
-            - output_dir (Optional[str]): Path to a directory where to save POCA attributes
-            in a hdf5 file.
-            - filename (Optional[str]): name of the hdf5 file where POCA attributes will be saved if output_dir is filled
+            tracking (Optional[TrackingMST]): Muon tracking data.
+            voi (Optional[Volume]): Volume of interest. If provided, POCA points outside the VOI will be filtered.
+            poca_file (Optional[str]): Path to an HDF5 file from which to load POCA attributes.
+            output_dir (Optional[str]): Directory to save POCA attributes.
+            filename (Optional[str]): Filename for saving if output_dir is provided.
         """
         AbsSave.__init__(self, output_dir=output_dir)
         VoxelPlotting.__init__(self, voi)
@@ -117,7 +121,7 @@ class POCA(AbsSave, VoxelPlotting):
             tol: Tolerance value for determining if tracks are parallel.
 
         Returns:
-            mask: Boolean tensor with size (n_mu), where True indicates the event is not parallel.
+        Tensor: Boolean mask of shape (n_mu,), True where tracks are **not parallel**.
         """
         # Compute the cross product for all pairs at once
         cross_prod = torch.linalg.cross(tracks_in, tracks_out, dim=1)
@@ -129,10 +133,10 @@ class POCA(AbsSave, VoxelPlotting):
 
     def _filter_pocas(self, mask: Tensor) -> None:
         r"""
-        Remove poca points specified as False in `mask`.
+        Removes POCA points where `mask` is False.
 
-        Arguments:
-            mask: (N,) Boolean tensor. poca points with False elements will be removed.
+        Args:
+            mask (Tensor): Boolean tensor of shape (n_mu). Only POCA points where mask is True are kept.
         """
         self.poca_points = self.poca_points[mask]
 
@@ -209,14 +213,15 @@ class POCA(AbsSave, VoxelPlotting):
     @staticmethod
     def assign_voxel_to_pocas(poca_points: Tensor, voi: Volume, batch_size: int) -> Tensor:
         """
-        Get the indinces of the voxel corresponding to each poca point.
+        Assign voxel indices to each POCA point.
 
-        Arguments:
-            - poca_points: Tensor with size (n_mu, 3).
-            - voi: An instance of the VolumeInterest class.
+        Args:
+            poca_points (Tensor): POCA locations, shape (n_mu, 3).
+            voi (Volume): Volume of interest.
+            batch_size (int): Number of POCA points to process per batch.
 
         Returns:
-            - poca points voxel indices as List[List[int]] with length n_mu.
+            Tensor: Voxel indices for each POCA point, shape (n_mu, 3), with -1 for out-of-bounds points.
         """
         indices = torch.ones((len(poca_points), 3), dtype=dtype_n, device=poca_points.device) * -1
 
@@ -257,15 +262,14 @@ class POCA(AbsSave, VoxelPlotting):
     @staticmethod
     def compute_n_poca_per_vox(poca_points: Tensor, voi: Volume) -> Tensor:
         """
-        Computes the number of POCA points per voxel, given a voxelized volume VOI.
+        Compute the number of POCA points in each voxel.
 
-        Arguments:
-         - voi:VolumeIntrest, an instance of the VOI class.
-         - poca_points: Tensor containing the poca points location, with size (n_mu, 3).
+        Args:
+            poca_points (Tensor): POCA coordinates, shape (n_mu, 3).
+            voi (Volume): Volume of interest.
 
         Returns:
-         - n_poca_per_vox: torch.tensor(dtype=int64) with size (nvox_x,nvox_y,nvox_z),
-         the number of poca points per voxel.
+            Tensor: Count of POCA points per voxel, shape (nx, ny, nz).
         """
 
         n_poca_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=dtype_n)
@@ -298,15 +302,14 @@ class POCA(AbsSave, VoxelPlotting):
     @staticmethod
     def compute_mask_in_voi(poca_points: Tensor, voi: Volume) -> Tensor:
         """
-        Compute the mask of POCA points located within the volumne of interest.
+        Compute a boolean mask indicating which POCA points lie inside the VOI.
 
-        Arguments:
-            - poca_points: Tensor with size (n_mu, 3).
-            - voi: An instance of the VolumeInterest class.
+        Args:
+            poca_points (Tensor): POCA locations, shape (n_mu, 3).
+            voi (Volume): Volume of interest.
 
         Returns:
-            - mask_in_voi: Tensor of bool with size (n_mu) with True if
-            the POCA point is within the voi, False otherwise.
+            Tensor: Boolean mask, shape (n_mu,).
         """
 
         masks_xyz = [(poca_points[:, i] >= voi.xyz_min[i]) & (poca_points[:, i] <= voi.xyz_max[i]) for i in range(3)]
@@ -314,15 +317,15 @@ class POCA(AbsSave, VoxelPlotting):
 
     @staticmethod
     def compute_full_mask(mask_in_voi: Tensor, parallel_mask: Tensor) -> Tensor:
-        """Combines the mask_in_voi and parallel_mask to create a full mask. Usefull for comparing
-        instances of the POCA class obatined from the same hits.
+        """
+        Combine `mask_in_voi` and `parallel_mask` to get a final valid-event mask.
 
         Args:
-            mask_in_voi (Tensor): The mask of POCA points located within the volume of interest.
-            parallel_mask (Tensor): The mask of parallel tracks.
+            mask_in_voi (Tensor): POCA-in-VOI mask.
+            parallel_mask (Tensor): Non-parallel-track mask.
 
         Returns:
-            Tensor: The full mask.
+            Tensor: Combined boolean mask.
         """
 
         full_mask = torch.zeros_like(parallel_mask, dtype=torch.bool, device=DEVICE)
@@ -331,19 +334,17 @@ class POCA(AbsSave, VoxelPlotting):
         return full_mask
 
     def plot_poca_event(self, event: int, proj: str = "XZ", voi: Optional[Volume] = None, figname: Optional[str] = None) -> None:
-        matplotlib.rc("font", **font)
+        """
+        Plot a single muon event and its POCA location in 2D (XZ or YZ projection).
 
-        sns.set_theme(
-            style="darkgrid",
-            rc={
-                "font.family": font["family"],
-                "font.size": font["size"],
-                "axes.labelsize": font["size"],  # Axis label font size
-                "axes.titlesize": font["size"],  # Axis title font size
-                "xtick.labelsize": font["size"],  # X-axis tick font size
-                "ytick.labelsize": font["size"],  # Y-axis tick font size
-            },
-        )
+        Args:
+            event (int): Index of the event to plot.
+            proj (str): "XZ" or "YZ". Defaults to "XZ".
+            voi (Optional[Volume]): If provided, VOI will be plotted.
+            figname (Optional[str]): If provided, saves the figure to this path.
+        """
+
+        set_plot_style()
 
         dim_map: Dict[str, Dict[str, Union[str, int]]] = {
             "XZ": {"x": 0, "y": 2, "xlabel": r"$x$ [mm]", "ylabel": r"$z$ [mm]", "proj": "XZ"},
@@ -352,14 +353,13 @@ class POCA(AbsSave, VoxelPlotting):
 
         dim_xy = (int(dim_map[proj]["x"]), int(dim_map[proj]["y"]))
 
-        fig, ax = plt.subplots(figsize=(10, 5))
+        fig, ax = plt.subplots()
         fig.suptitle(
             f"Tracking of event {event:,d}"
             + "\n"
             + f"{dim_map[proj]['proj']} projection, "
             + r"$\delta\theta$ = "
             + f"{self.tracks.dtheta[event] * 180 / math.pi:.2f} deg",
-            fontweight="bold",
         )
 
         points_in_np = self.tracks.points_in.detach().cpu().numpy()
@@ -406,8 +406,8 @@ class POCA(AbsSave, VoxelPlotting):
             bbox_to_anchor=(1.0, 0.7),
         )
         ax.set_aspect("equal")
-        ax.set_xlabel(f"{dim_map[proj]['xlabel']}", fontweight="bold")
-        ax.set_ylabel(f"{dim_map[proj]['ylabel']}", fontweight="bold")
+        ax.set_xlabel(f"{dim_map[proj]['xlabel']}")
+        ax.set_ylabel(f"{dim_map[proj]['ylabel']}")
 
         if figname is not None:
             plt.savefig(figname, bbox_inches="tight")
@@ -453,6 +453,13 @@ class POCA(AbsSave, VoxelPlotting):
     def n_poca_per_vox(self, value: Tensor) -> None:
         r"""Set the number of POCA points per voxel."""
         self._n_poca_per_vox = value
+
+    @property
+    def n_poca_per_vox_norm(self) -> Tensor:
+        """
+        Normalized count of POCA points per voxel.
+        """
+        return normalize(self.n_poca_per_vox)  # type: ignore
 
     @property
     def poca_indices(self) -> Tensor:

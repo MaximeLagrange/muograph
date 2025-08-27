@@ -2,8 +2,10 @@ from pathlib import Path
 import pandas as pd
 import torch
 from torch import Tensor
+import uproot
 from typing import Optional, Tuple, Dict
 import matplotlib.pyplot as plt
+import awkward as ak
 
 from muograph.plotting.plotting import get_n_bins_xy_from_xy_span
 from muograph.plotting.params import (
@@ -25,7 +27,7 @@ Provides class for handling muon hits and simulating detector response.
 
 class Hits:
     r"""
-    A class to handle and process muon hit data from a CSV file.
+    A class to handle and process muon hit data from a CSV, hdf5 or root file.
     """
 
     # Muon hits
@@ -50,6 +52,7 @@ class Hits:
         self,
         csv_filename: Optional[str] = None,
         df: Optional[pd.DataFrame] = None,
+        root_file: Optional[str] = None,
         plane_labels: Optional[Tuple[int, ...]] = None,
         spatial_res: Optional[Tuple[float, float, float]] = None,
         energy_range: Optional[Tuple[float, float]] = None,
@@ -92,8 +95,8 @@ class Hits:
         self.energy_range = energy_range
 
         # Load or create hits DataFrame
-        if csv_filename is None and df is None:
-            raise ValueError("Provide either csv_filename or df, not both.")
+        if csv_filename is None and df is None and root_file is None:
+            raise ValueError("Provide either csv_filename, root_file or df.")
 
         if csv_filename is not None:
             self.input_unit = input_unit
@@ -109,6 +112,12 @@ class Hits:
 
             self._df = df
 
+        elif root_file is not None:
+            self.input_unit = input_unit
+            if input_unit not in allowed_d_units:
+                raise ValueError("Input unit must be mm, cm, dm or m")
+            
+            self._df = self._get_df_from_root(root_file)
         else:
             raise ValueError("Either csv_filename or df must be provided.")
 
@@ -137,6 +146,68 @@ class Hits:
         description += "."
 
         return description
+
+    @staticmethod
+    def _get_df_from_root(root_file: str, n_mu_max: Optional[int] = None) -> pd.DataFrame:
+        """
+        Load ROOT file and return a Pandas DataFrame with event data.
+
+        Parameters
+        ----------
+        root_file : str
+            Path to the ROOT file.
+        n_mu_max : Optional[int], default=None
+            Maximum number of rows to return (useful for debugging).
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing split x, y, z components and kinetic energy.
+        """
+        if not Path(root_file).exists():
+            raise FileNotFoundError(f"The file '{root_file}' does not exist.")
+
+        with uproot.open(root_file) as f:
+            treenames = list(f.keys())
+            if not treenames:
+                raise ValueError(f"No trees found in ROOT file '{root_file}'.")
+            tree = f[treenames[0]]
+
+            arrays = {branch: tree[branch].array() for branch in tree.keys()}
+
+        required_vars = ["eventID", "x", "y", "z", "kineticEnergy"]
+        missing = [v for v in required_vars if v not in arrays]
+        if missing:
+            raise KeyError(f"Missing required branches in ROOT file: {missing}")
+
+        # Sort by eventID
+        order = ak.argsort(arrays["eventID"])
+        arrays = {k: v[order] for k, v in arrays.items()}
+
+        # Group arrays by event length ---
+        counts = ak.run_lengths(arrays["eventID"])
+        arrays_grouped = {k: ak.unflatten(v, counts) for k, v in arrays.items()}
+
+        # Convert x, y, z, kineticEnergy to regular arrays ---
+        for var in ["x", "y", "z", "kineticEnergy"]:
+            inner_lengths = ak.num(arrays_grouped[var])
+            if not ak.all(inner_lengths == inner_lengths[0]):
+                raise ValueError(f"Variable '{var}' has inconsistent inner lengths.")
+            arrays_grouped[var] = ak.to_regular(arrays_grouped[var])
+
+        def expand_variable(name: str, arr: ak.Array) -> dict[str, pd.Series]:
+            n_components = ak.num(arr, axis=1)[0]  # number of columns
+            return {f"{name}{n_components - (i + 1)}": arr[:, i].to_numpy() for i in range(n_components)}
+
+        data = {}
+        data.update(expand_variable("X", arrays_grouped["x"]))
+        data.update(expand_variable("Y", arrays_grouped["y"]))
+        data.update(expand_variable("Z", arrays_grouped["z"]))
+        data["E"] = arrays_grouped["kineticEnergy"][:, 0].to_numpy()
+
+        df = pd.DataFrame(data)
+
+        return df.iloc[:n_mu_max] if n_mu_max is not None else df
 
     @staticmethod
     def get_data_frame_from_csv(csv_filename: str, n_mu_max: Optional[int] = None) -> pd.DataFrame:
@@ -294,6 +365,12 @@ class Hits:
         self.reco_hits = self.reco_hits[:, :, mask]
         self.gen_hits = self.gen_hits[:, :, mask]
         self.E = self.E[mask]
+
+    def new_func(self, x) -> None:
+        
+        x = 0.00000
+
+        return None
 
     def plot(
         self,

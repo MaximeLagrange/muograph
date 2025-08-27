@@ -2,10 +2,10 @@ from pathlib import Path
 import pandas as pd
 import torch
 from torch import Tensor
-import uproot
+import uproot # type: ignore
 from typing import Optional, Tuple, Dict
 import matplotlib.pyplot as plt
-import awkward as ak
+import awkward as ak # type: ignore
 
 from muograph.plotting.plotting import get_n_bins_xy_from_xy_span
 from muograph.plotting.params import (
@@ -116,7 +116,7 @@ class Hits:
             self.input_unit = input_unit
             if input_unit not in allowed_d_units:
                 raise ValueError("Input unit must be mm, cm, dm or m")
-            
+
             self._df = self._get_df_from_root(root_file)
         else:
             raise ValueError("Either csv_filename or df must be provided.")
@@ -365,12 +365,6 @@ class Hits:
         self.reco_hits = self.reco_hits[:, :, mask]
         self.gen_hits = self.gen_hits[:, :, mask]
         self.E = self.E[mask]
-
-    def new_func(self, x) -> None:
-        
-        x = 0.00000
-
-        return None
 
     def plot(
         self,

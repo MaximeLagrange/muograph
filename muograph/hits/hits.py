@@ -2,10 +2,10 @@ from pathlib import Path
 import pandas as pd
 import torch
 from torch import Tensor
-import uproot # type: ignore
+import uproot  # type: ignore
 from typing import Optional, Tuple, Dict
 import matplotlib.pyplot as plt
-import awkward as ak # type: ignore
+import awkward as ak  # type: ignore
 
 from muograph.plotting.plotting import get_n_bins_xy_from_xy_span
 from muograph.plotting.params import (
@@ -69,6 +69,7 @@ class Hits:
                 Either `csv_filename` or `df` must be provided, but not both.
             df (Optional[pd.DataFrame]): A DataFrame containing hit and energy data. Use this instead of
                 loading data from a CSV file.
+            root_file (Optional[str]): The file path to the root file containing hit and energy data.
             plane_labels (Optional[Tuple[int, ...]]): Specifies the plane labels to include from the data,
                 as a tuple of integers. Only hits from these planes will be loaded if provided.
             spatial_res (Optional[Tuple[float, float, float]]): The spatial resolution of detector panels
@@ -103,7 +104,7 @@ class Hits:
             if input_unit not in allowed_d_units:
                 raise ValueError("Input unit must be mm, cm, dm or m")
 
-            self._df = self.get_data_frame_from_csv(csv_filename, n_mu_max)
+            self._df = self.get_df_from_csv(csv_filename, n_mu_max)
 
         elif df is not None:
             self.input_unit = input_unit
@@ -210,7 +211,7 @@ class Hits:
         return df.iloc[:n_mu_max] if n_mu_max is not None else df
 
     @staticmethod
-    def get_data_frame_from_csv(csv_filename: str, n_mu_max: Optional[int] = None) -> pd.DataFrame:
+    def get_df_from_csv(csv_filename: str, n_mu_max: Optional[int] = None) -> pd.DataFrame:
         r"""
         Reads a CSV file into a DataFrame.
 

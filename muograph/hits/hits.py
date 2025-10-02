@@ -491,6 +491,16 @@ class Hits:
             self._hits_eff = self.get_muon_wise_eff(self.efficiency, self.gen_hits)
         return self._hits_eff
 
+    @property
+    def xyz_min_max(self) -> Tensor:  # shape (3, 2)
+        mins = self.gen_hits.amin(dim=(-1, 0))
+        maxs = self.gen_hits.amax(dim=(-1, 0))
+        return torch.stack([mins, maxs], dim=1)
+
+    @property
+    def dxyz(self) -> Tensor:  # shape (3,)
+        return self.xyz_min_max[:, 1] - self.xyz_min_max[:, 0]
+
 
 def filter_nans(hits_in: Hits, hits_out: Hits) -> None:
     """

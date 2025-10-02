@@ -13,6 +13,8 @@ from muograph.volume.volume import Volume
 from muograph.plotting.style import set_plot_style, subplots_4_figsize, subplots_2_figsize, n_bins, alpha
 from muograph.utils.device import DEVICE
 
+MU_MASS = 105.66  # MeV/c
+
 r"""
 Provides class for converting muon hits of the `Hits` class into
 muon tracks usable for image reconstruction purposes.
@@ -1118,13 +1120,18 @@ class TrackingMST:
     @property
     def E(self) -> Tensor:
         r"""
-        Muons kinetic energy.
+        Muons kinetic energy in MeV/c2.
         """
         return self._E
 
     @E.setter
     def E(self, value: Tensor) -> None:
         self._E = value
+
+    @property
+    def p(self) -> Tensor:
+        r"""Muon momentum in MeV/c."""
+        return MU_MASS * torch.sqrt(((self.E / MU_MASS) + 1) ** 2 - 1)
 
     # Scattering angle
     @property
@@ -1133,6 +1140,10 @@ class TrackingMST:
         if self._dtheta is None:
             self._dtheta = self.compute_dtheta_from_tracks(self.tracks_in, self.tracks_out)
         return self._dtheta
+
+    @dtheta.setter
+    def dtheta(self, value: Tensor) -> None:
+        self._dtheta = value
 
     # Tracks
     @property

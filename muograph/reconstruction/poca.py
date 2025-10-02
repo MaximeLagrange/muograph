@@ -1,8 +1,7 @@
 import torch
 from torch import Tensor
 from copy import deepcopy
-from typing import Optional, Dict, Union
-from functools import partial
+from typing import Optional, Dict, Union, Tuple
 import matplotlib.pyplot as plt
 from fastprogress import progress_bar
 import numpy as np
@@ -13,9 +12,9 @@ from muograph.utils.device import DEVICE
 from muograph.utils.datatype import dtype_track, dtype_n
 from muograph.volume.volume import Volume
 from muograph.tracking.tracking import TrackingMST
-from muograph.plotting.voxel import VoxelPlotting
 from muograph.plotting.style import set_plot_style
 from muograph.utils.tools import normalize
+from muograph.reconstruction.voxel_inferer import AbsVoxelInferer
 
 
 r"""
@@ -28,7 +27,7 @@ def are_parallel(v1: Tensor, v2: Tensor, tol: float = 1e-5) -> bool:
     return bool(torch.all(torch.abs(cross_prod) < tol).detach().cpu().item())
 
 
-class POCA(AbsSave, VoxelPlotting):
+class POCA(AbsSave, AbsVoxelInferer):
     r"""
     A class for Point Of Closest Approach computation in the context of a Muon Scattering Tomography analysis.
     """
@@ -54,58 +53,49 @@ class POCA(AbsSave, VoxelPlotting):
         "poca_indices",
     ]
 
-    _poca_params = {
-        "score": None,
-        "score_method": partial(torch.std, dim=0),
+    _poca_params: Dict[str, Union[bool, float]] = {
+        "use_p": False,
+        "p_clamp": 1.00,
+        "dtheta_clamp": 1.00,
+        "preds_clamp": 1.00,
     }
 
     _recompute_preds: bool = True
 
     def __init__(
         self,
-        tracking: Optional[TrackingMST] = None,
-        voi: Optional[Volume] = None,
-        poca_file: Optional[str] = None,
+        voi: Volume,
+        tracking: TrackingMST,
         output_dir: Optional[str] = None,
         filename: Optional[str] = None,
     ) -> None:
         """
-        Initializes the POCA object with either a TrackingMST instance or an HDF5 file.
+        Initializes the POCA object with either a TrackingMST instance.
 
         Args:
             tracking (Optional[TrackingMST]): Muon tracking data.
             voi (Optional[Volume]): Volume of interest. If provided, POCA points outside the VOI will be filtered.
-            poca_file (Optional[str]): Path to an HDF5 file from which to load POCA attributes.
             output_dir (Optional[str]): Directory to save POCA attributes.
             filename (Optional[str]): Filename for saving if output_dir is provided.
         """
         AbsSave.__init__(self, output_dir=output_dir)
-        VoxelPlotting.__init__(self, voi)
+        AbsVoxelInferer.__init__(self, voi=voi, tracking=tracking)
 
         self.filename = filename if filename else "poca"
 
-        if tracking is None and poca_file is None:
-            raise ValueError("Provide either poca.hdf5 file of TrackingMST instance.")
+        self.tracks = deepcopy(tracking)
+        self.voi = voi
 
-        # Compute poca attributes if TrackingMST is provided
-        elif (tracking is not None) and (voi is not None):
-            self.tracks = deepcopy(tracking)
-            self.voi = voi
+        # Remove parallel events
+        self.tracks._filter_muons(self.parallel_mask)
 
-            # Remove parallel events
-            self.tracks._filter_muons(self.parallel_mask)
+        # Remove POCAs outside voi
+        self.tracks._filter_muons(self.mask_in_voi)
+        self._filter_pocas(self.mask_in_voi)
 
-            # Remove POCAs outside voi
-            self.tracks._filter_muons(self.mask_in_voi)
-            self._filter_pocas(self.mask_in_voi)
-
-            # Save attributes to hdf5
-            if output_dir is not None:
-                self.save_attr(self._vars_to_save, self.output_dir, filename=self.filename)
-
-        # Load poca attributes from hdf5 if poca_file is provided
-        elif tracking is None and poca_file is not None:
-            self.load_attr(self._vars_to_load, poca_file)
+        # Save attributes to hdf5
+        if output_dir is not None:
+            self.save_attr(self._vars_to_save, self.output_dir, filename=self.filename)
 
     def __repr__(self) -> str:
         return f"Collection of {self.n_mu} POCA locations."
@@ -139,6 +129,9 @@ class POCA(AbsSave, VoxelPlotting):
             mask (Tensor): Boolean tensor of shape (n_mu). Only POCA points where mask is True are kept.
         """
         self.poca_points = self.poca_points[mask]
+
+        if self._poca_indices is not None:
+            self.poca_indices = self.poca_indices[mask]
 
     @staticmethod
     def compute_poca_points(points_in: Tensor, points_out: Tensor, tracks_in: Tensor, tracks_out: Tensor) -> Tensor:
@@ -260,44 +253,12 @@ class POCA(AbsSave, VoxelPlotting):
         return indices
 
     @staticmethod
-    def compute_n_poca_per_vox(poca_points: Tensor, voi: Volume) -> Tensor:
-        """
-        Compute the number of POCA points in each voxel.
+    def compute_n_poca_per_vox(poca_indices: Tensor, voi: Volume) -> Tensor:
+        nx, ny, nz = voi.n_vox_xyz
 
-        Args:
-            poca_points (Tensor): POCA coordinates, shape (n_mu, 3).
-            voi (Volume): Volume of interest.
+        flat_indices = poca_indices[:, 0] * ny * nz + poca_indices[:, 1] * nz + poca_indices[:, 2]
 
-        Returns:
-            Tensor: Count of POCA points per voxel, shape (nx, ny, nz).
-        """
-
-        n_poca_per_vox = torch.zeros(tuple(voi.n_vox_xyz), device=DEVICE, dtype=dtype_n)
-
-        for i in range(voi.n_vox_xyz[2]):
-            z_min = voi.xyz_min[2] + i * voi.vox_width[2]
-            z_max = z_min + voi.vox_width[2]
-            mask_slice = (poca_points[:, 2] >= z_min) & ((poca_points[:, 2] <= z_max))
-
-            H, _, __ = np.histogram2d(
-                poca_points[mask_slice, 0].detach().cpu().numpy(),
-                poca_points[mask_slice, 1].detach().cpu().numpy(),
-                bins=(int(voi.n_vox_xyz[0]), int(voi.n_vox_xyz[1])),
-                range=(
-                    (
-                        voi.xyz_min[0].detach().cpu().numpy(),
-                        voi.xyz_max[0].detach().cpu().numpy(),
-                    ),
-                    (
-                        voi.xyz_min[1].detach().cpu().numpy(),
-                        voi.xyz_max[1].detach().cpu().numpy(),
-                    ),
-                ),
-            )
-
-            n_poca_per_vox[:, :, i] = torch.tensor(H, dtype=dtype_n)
-
-        return n_poca_per_vox
+        return torch.bincount(flat_indices, minlength=nx * ny * nz).reshape(voi.n_vox_xyz)
 
     @staticmethod
     def compute_mask_in_voi(poca_points: Tensor, voi: Volume) -> Tensor:
@@ -413,6 +374,104 @@ class POCA(AbsSave, VoxelPlotting):
             plt.savefig(figname, bbox_inches="tight")
         plt.show()
 
+    def get_xyz_voxel_pred(self) -> Tensor:
+        r"""
+        Compute the per-voxel prediction of scattering strength as the root mean square (RMS)
+        of scattering angles, with optional momentum weighting.
+
+        For each track, the scattering angle (``dtheta``) and, if enabled, the momentum (``p``)
+        are clamped at quantile thresholds defined in ``self.poca_params``. These values are
+        then combined into a per-track score, which is accumulated voxel-wise according to
+        the track's POCA-assigned voxel index. The RMS of the scores is computed per voxel.
+
+        Steps:
+            1. Clamp ``dtheta`` values at the quantile threshold ``dtheta_clamp``.
+            2. If ``use_p`` is True:
+                - Clamp ``p`` values at ``p_clamp``.
+                - Compute the per-track score as:
+                ``score = (dtheta ** 2) * (p ** 2) / (p.mean() ** 2)``
+            3. If ``use_p`` is False:
+                - The score is simply ``dtheta ** 2``.
+            4. For each voxel, aggregate track scores assigned to that voxel, and compute the
+            RMS value: ``sqrt(sum(score) / count)``.
+            5. Clamp the final voxel RMS values at the quantile threshold ``preds_clamp``.
+
+        Returns:
+            Tensor: A 3D tensor of shape ``(nx, ny, nz)``, where each element is the clamped RMS
+            scattering score of tracks assigned to the corresponding voxel. Voxels without
+            assigned tracks are set to 0.
+        """
+
+        dtheta_max = torch.quantile(self.tracks.dtheta, q=self.poca_params["dtheta_clamp"])
+        dtheta = torch.clamp(self.tracks.dtheta, max=dtheta_max)
+
+        if self.poca_params["use_p"]:
+            p_max = torch.quantile(self.tracks.p, q=self.poca_params["p_clamp"])
+            p = torch.clamp(self.tracks.p, max=p_max)
+            dtheta = torch.clamp(self.tracks.dtheta, max=dtheta_max)
+            # score = (dtheta ** 2) * (torch.log(p ** 2)) / torch.log(p.mean() ** 2)
+            score = (dtheta**2) * ((p**2)) / (p.mean() ** 2)
+
+        else:
+            score = dtheta**2
+
+        nx, ny, nz = self.voi.n_vox_xyz
+
+        flat_indices = self.poca_indices[:, 0] * ny * nz + self.poca_indices[:, 1] * nz + self.poca_indices[:, 2]
+
+        # Count number of entries per voxel
+        counts = torch.bincount(flat_indices, minlength=nx * ny * nz)
+
+        sums = torch.bincount(flat_indices, weights=score, minlength=nx * ny * nz)
+
+        # Avoid division by zero
+        mask = counts > 0
+        rms_values = torch.zeros_like(sums)
+        rms_values[mask] = torch.sqrt(sums[mask] / counts[mask])
+
+        voxel_rms = rms_values.reshape(nx, ny, nz)
+
+        self._recompute_preds = False
+
+        voxel_rms_max = torch.quantile(voxel_rms, q=self.poca_params["preds_clamp"])
+        voxel_rms = torch.clamp(voxel_rms, max=voxel_rms_max)
+
+        return voxel_rms
+
+    def get_tracks_in_voxel(self, voxel_idx: Tuple[int, int, int]) -> Tuple[Tensor, Tensor, Optional[Tensor]]:
+        """
+        Given a voxel index (i, j, k), return:
+        - track indices contributing to that voxel
+        - corresponding dtheta values
+        - corresponding p values (if used)
+        """
+        i, j, k = voxel_idx
+        nx, ny, nz = self.voi.n_vox_xyz
+
+        # Compute flat voxel index
+        voxel_flat = i * ny * nz + j * nz + k
+
+        flat_indices = self.poca_indices[:, 0] * ny * nz + self.poca_indices[:, 1] * nz + self.poca_indices[:, 2]
+
+        # Mask for tracks in that voxel
+        mask = flat_indices == voxel_flat
+
+        # Get indices of contributing tracks
+        track_indices = torch.nonzero(mask, as_tuple=True)[0]
+
+        # dtheta values (clamped as in voxel_rms computation)
+        dtheta_max = torch.quantile(self.tracks.dtheta, q=self.poca_params["dtheta_clamp"])
+        dtheta = torch.clamp(self.tracks.dtheta, max=dtheta_max)[mask]
+
+        # p values (clamped if enabled)
+        if self.poca_params["use_p"]:
+            p_max = torch.quantile(self.tracks.p, q=self.poca_params["p_clamp"])
+            p = torch.clamp(self.tracks.p, max=p_max)[mask]
+        else:
+            p = None
+
+        return track_indices, dtheta, p
+
     @property
     def n_mu(self) -> int:
         r"""The number of muons."""
@@ -446,7 +505,7 @@ class POCA(AbsSave, VoxelPlotting):
     def n_poca_per_vox(self) -> Tensor:
         r"""Tensor: The number of POCA points per voxel."""
         if self._n_poca_per_vox is None:
-            self._n_poca_per_vox = self.compute_n_poca_per_vox(poca_points=self.poca_points, voi=self.voi)
+            self._n_poca_per_vox = self.compute_n_poca_per_vox(poca_indices=self.poca_indices, voi=self.voi)
         return self._n_poca_per_vox
 
     @n_poca_per_vox.setter
@@ -486,3 +545,16 @@ class POCA(AbsSave, VoxelPlotting):
         full_mask = self.compute_full_mask(mask_in_voi=self.mask_in_voi, parallel_mask=self.parallel_mask)
 
         return full_mask
+
+    @property
+    def poca_params(self) -> Dict[str, Union[bool, float]]:
+        return self._poca_params
+
+    @poca_params.setter
+    def poca_params(self, value: Dict[str, bool]) -> None:
+        for key in value.keys():
+            if key in self._poca_params.keys():
+                if value[key] is not None:
+                    self._poca_params[key] = value[key]
+
+        self._recompute_preds = True

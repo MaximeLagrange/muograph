@@ -493,12 +493,14 @@ class Hits:
 
     @property
     def xyz_min_max(self) -> Tensor:  # shape (3, 2)
+        """Returns the minimum and maximum values of the generated hits along each spatial axis."""
         mins = self.gen_hits.amin(dim=(-1, 0))
         maxs = self.gen_hits.amax(dim=(-1, 0))
         return torch.stack([mins, maxs], dim=1)
 
     @property
     def dxyz(self) -> Tensor:  # shape (3,)
+        """Returns the spatial extent (range) along each axis, computed as the difference between the max and min values from `xyz_min_max`."""
         return self.xyz_min_max[:, 1] - self.xyz_min_max[:, 0]
 
 

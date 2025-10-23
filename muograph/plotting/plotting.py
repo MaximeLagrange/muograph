@@ -6,6 +6,7 @@ import numpy as np
 
 from muograph.volume.volume import Volume
 from muograph.plotting.params import d_unit, n_bins_2D, n_bins
+from muograph.plotting.style import set_plot_style
 
 
 def plot_n_poca_per_voxel(n_poca_per_vox: Tensor, dim: int, plot_name: Optional[str] = None) -> None:
@@ -281,53 +282,37 @@ def plot_hist(
     data_1D: Union[Tensor, np.ndarray],
     ylabel: Optional[str] = None,
     xlabel: Optional[str] = None,
-    logx: bool = False,
     logy: bool = False,
+    logx: bool = False,
     figname: Optional[str] = None,
     title: Optional[str] = None,
     n_bins: int = n_bins,
     range: Optional[Tuple] = None,
 ) -> None:
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-    from muograph.plotting.params import font
-
-    import matplotlib
-
-    matplotlib.rc("font", **font)
-
-    sns.set_theme(
-        style="darkgrid",
-        rc={
-            "font.family": font["family"],
-            "font.size": font["size"],
-            "axes.labelsize": font["size"],  # Axis label font size
-            "axes.titlesize": font["size"],  # Axis title font size
-            "xtick.labelsize": font["size"],  # X-axis tick font size
-            "ytick.labelsize": font["size"],  # Y-axis tick font size
-        },
-    )
+    set_plot_style()
 
     fig, ax = plt.subplots()
 
-    sns.histplot(
-        data=data_1D.detach().cpu().detach().numpy() if isinstance(data_1D, Tensor) else data_1D,
-        alpha=0.4,
+    ax.hist(
+        data_1D.detach().cpu().numpy() if isinstance(data_1D, Tensor) else data_1D,
         bins=n_bins,
-        ax=ax,
-        log_scale=(logx, logy),
+        range=range,
+        log=logy,
         color="blue",
-        binrange=range,
+        alpha=0.4,
+        edgecolor="black",
     )
 
     xlabel = "x" if xlabel is None else xlabel
     ylabel = "frequency [a.u]" if ylabel is None else ylabel
 
-    ax.set_xlabel(xlabel, fontweight="bold", fontsize=font["size"])
-    ax.set_ylabel(ylabel, fontweight="bold", fontsize=font["size"])
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    if logx:
+        ax.set_xscale("log")
 
     if title is not None:
-        ax.set_title(title, fontweight="bold", fontsize=font["size"])
+        ax.set_title(title)
 
     if figname is not None:
         plt.savefig(figname, bbox_inches="tight")

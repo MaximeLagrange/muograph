@@ -752,6 +752,9 @@ class TrackingMST:
             for the incoming muon tracks (Tracking.label = 'above') and outgoing tracks
             (Tracking.label = 'below')
         """
+        # Load data from Tracking instances
+        for tracking, tag in zip(trackings, ["_in", "_out"]):
+            self.load_attr_from_tracking(tracking, tag)
 
         # Filter muon event due to detector efficiency
         self.n_mu_removed = (self.n_mu - self.muon_eff.sum()).detach().cpu().item()

@@ -35,6 +35,7 @@ ipykernel = "^6.30.1"
 
 [tool.mypy]
 ignore_missing_imports = true
+exclude = "dev/"
 
 [tool.poetry.group.dev.dependencies]
 notebook = "<7.0.0"
@@ -64,6 +65,7 @@ exclude = '''
   | \.mypy_cache
   | \.tox
   | \.venv
+    dev
   | _build
   | build
   | dist

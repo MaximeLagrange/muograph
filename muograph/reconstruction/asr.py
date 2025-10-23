@@ -77,24 +77,41 @@ class ASR(AbsSave, AbsVoxelInferer):
 
     @staticmethod
     def save_triggered_vox(triggered_voxels: List[np.ndarray], directory: Path, filename: str) -> None:
-        r"""
-        Method for saving triggered voxel as a hdf5 file.
-        """
         with h5py.File(directory / filename, "w") as f:
             print(f"Saving triggered voxels to {directory / filename}")
-            for i, indices in enumerate(progress_bar(triggered_voxels)):
-                f.create_dataset("{}".format(i), data=indices)
-        f.close()
+
+            # Variable-length dataset for flattened data
+            vlen_dtype = h5py.vlen_dtype(np.dtype("int64"))
+            dset = f.create_dataset("triggered_voxels", shape=(len(triggered_voxels),), dtype=vlen_dtype, compression="gzip")
+
+            # Store lengths so we can reshape back to (N, 3)
+            lengths = np.empty(len(triggered_voxels), dtype=np.int64)
+
+            for i, arr in enumerate(triggered_voxels):
+                flat = arr.flatten()
+                dset[i] = flat
+                lengths[i] = arr.shape[0]  # number of rows (N)
+
+            # Save lengths separately
+            f.create_dataset("lengths", data=lengths)
 
     @staticmethod
     def load_triggered_vox(triggered_vox_file: str) -> List[np.ndarray]:
         r"""
-        Method for loading triggered voxel from hdf5 file.
+        Method for loading triggered voxels from hdf5 file.
+        Restores each (N, 3) array from the vlen dataset.
         """
         with h5py.File(triggered_vox_file, "r") as f:
             print(f"Loading triggered voxels from {triggered_vox_file}")
-            triggered_voxels = [f["{}".format(i)][:] for i, _ in enumerate(progress_bar(f.keys()))]
-        f.close()
+
+            flat_arrays = f["triggered_voxels"]
+            lengths = f["lengths"][:]
+
+            triggered_voxels = []
+            for flat, n in zip(flat_arrays, lengths):
+                arr = flat.reshape((n, 3))
+                triggered_voxels.append(arr)
+
         return triggered_voxels
 
     @staticmethod

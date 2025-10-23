@@ -460,7 +460,7 @@ class Tracking(AbsSave):
             n_panels = self.hits.n_panels
             reco_hits_np = self.hits.reco_hits.detach().cpu().numpy()
             gen_hits_np = self.hits.gen_hits.detach().cpu().numpy()
-        else:
+        elif hits is not None:
             n_panels = hits.n_panels
             reco_hits_np = hits.reco_hits.detach().cpu().numpy()
             gen_hits_np = hits.gen_hits.detach().cpu().numpy()
@@ -742,10 +742,7 @@ class TrackingMST:
 
     _vars_to_load = ["tracks", "points", "angular_res", "E", "tracks_eff", "hits"]
 
-    def __init__(
-        self,
-        trackings: Tuple[Tracking, Tracking] = None,
-    ) -> None:
+    def __init__(self, trackings: Tuple[Tracking, Tracking]) -> None:
         r"""
         Initializes the TrackingMST object with 2 instances of the Tracking class
         (with tags 'above' and 'below').
@@ -755,13 +752,6 @@ class TrackingMST:
             for the incoming muon tracks (Tracking.label = 'above') and outgoing tracks
             (Tracking.label = 'below')
         """
-
-        # Load data from Tracking instances
-        if trackings is not None:
-            for tracking, tag in zip(trackings, ["_in", "_out"]):
-                self.load_attr_from_tracking(tracking, tag)
-        else:
-            raise ValueError("Provide instance of Tracking class with label `above` and `below`.")
 
         # Filter muon event due to detector efficiency
         self.n_mu_removed = (self.n_mu - self.muon_eff.sum()).detach().cpu().item()

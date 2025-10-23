@@ -25,8 +25,6 @@ to detect high-Z material using cosmic muons, 2013 JINST 8 P10013,
 
 
 class BCA(POCA, AbsVoxelInferer):
-    _hit_per_voxel: Optional[Tensor] = None  # (Nx, Ny, Nz)
-
     _bca_params: bca_params_type = {
         "n_max_per_vox": 50,
         "n_min_per_vox": 3,
@@ -87,7 +85,7 @@ class BCA(POCA, AbsVoxelInferer):
         return distances
 
     @staticmethod
-    def compute_scattering_momentum_weight(dtheta: Tensor, p: Optional[Tensor] = None) -> Tensor:
+    def compute_scattering_momentum_weight(dtheta: Tensor, p: Tensor) -> Tensor:
         r"""
         Compute weights based on the muon scattering angle and momentum (if availabe).
 

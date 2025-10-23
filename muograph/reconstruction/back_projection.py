@@ -542,8 +542,8 @@ class BackProjection(AbsSave, VoxelPlotting):
 
         # Plot voxel position
         ax.scatter(
-            mapping[dim]["vox_x"],
-            mapping[dim]["vox_y"],
+            mapping[dim]["vox_x"],  # type: ignore
+            mapping[dim]["vox_y"],  # type: ignore
             color="red",
             marker=".",
             alpha=0.5,
@@ -575,8 +575,8 @@ class BackProjection(AbsSave, VoxelPlotting):
 
         # Plot triggered voxels
         ax.scatter(
-            mapping[dim]["vox_x"],
-            mapping[dim]["vox_y"],
+            mapping[dim]["vox_x"],  # type: ignore
+            mapping[dim]["vox_y"],  # type: ignore
             color="red",
             marker=".",
             alpha=0.5,
@@ -625,7 +625,7 @@ class BackProjection(AbsSave, VoxelPlotting):
         The voxel-wise xyz muon counts, with size (Vx, Vy, Vz),
         where Vi the number of voxels along the i axis.
         """
-        if (self._voxel_xyz_muon_count is None) | (self._recompute):
+        if self._voxel_xyz_muon_count is None or self._recompute:
             self._voxel_xyz_muon_count = self._get_voxel_xyz_muon_counts()
             self._recompute = False
         return self._voxel_xyz_muon_count

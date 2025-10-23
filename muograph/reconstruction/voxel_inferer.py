@@ -1,6 +1,7 @@
 from typing import Optional
 import torch
 from torch import Tensor
+from abc import ABC, abstractmethod
 
 from muograph.volume.volume import Volume
 from muograph.tracking.tracking import TrackingMST
@@ -12,9 +13,7 @@ Provides class for voxel-wise scattering density predictions.
 """
 
 
-class AbsVoxelInferer(
-    VoxelPlotting,
-):
+class AbsVoxelInferer(VoxelPlotting, ABC):
     r"""
     Class used for handling the computation and plotting of voxel-wise scattering density predictions
     """
@@ -32,17 +31,17 @@ class AbsVoxelInferer(
             - tracking (Optional[TrackingMST]) Instance of the TrackingMST class.
         """
 
-        VoxelPlotting.__init__(self, voi=voi)
+        super().__init__(voi=voi)
         self.tracks = tracking
 
+    @abstractmethod
     def get_xyz_voxel_pred(self) -> Tensor:
-        r"""
-        Computes the scattering density predictions per voxel.
+        """
+        Abstract method to compute voxel-wise predictions.
 
         Returns:
-            vox_density_pred (Tensor): voxelwise density predictions
+            Tensor: A tensor of shape (nx, ny, nz) with voxel-wise predictions.
         """
-
         pass
 
     @property
@@ -50,8 +49,9 @@ class AbsVoxelInferer(
         r"""
         The scattering density predictions.
         """
-        if (self._xyz_voxel_pred is None) | (self._recompute_preds):
+        if self._xyz_voxel_pred is None or self._recompute_preds:
             self._xyz_voxel_pred = self.get_xyz_voxel_pred()
+            assert self._xyz_voxel_pred is not None
         return self._xyz_voxel_pred
 
     @property

@@ -13,9 +13,14 @@ alpha_sns: float = 0.4
 d_unit: str = "mm"
 
 # Matplotlib default font
-fontsize: int = 18
-labelsize: int = 19
-titlesize: int = 20
+# fontsize: int = 18
+# labelsize: int = 19
+# titlesize: int = 20
+
+fontsize: int = 12
+labelsize: int = 12
+titlesize: int = 22
+
 
 fontweigh: str = "normal"
 font: Dict[str, Union[str, int]] = {"weight": "normal", "size": fontsize, "family": "sans-serif"}

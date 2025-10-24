@@ -432,11 +432,11 @@ class ASR(AbsSave, AbsVoxelInferer):
             # score = self.theta_xy_in[0].detach().cpu().numpy()
             # score = self.tracks.theta_in.detach().cpu().numpy()
 
-        mask_E = (self.tracks.E > self.asr_params["p_range"][0]) & (  # type: ignore
-            self.tracks.E < self.asr_params["p_range"][1]  # type: ignore
+        mask_E = (self.tracks.E >= self.asr_params["p_range"][0]) & (  # type: ignore
+            self.tracks.E <= self.asr_params["p_range"][1]  # type: ignore
         )
-        mask_theta = (self.tracks.dtheta > self.asr_params["dtheta_range"][0]) & (  # type: ignore
-            self.tracks.dtheta < self.asr_params["dtheta_range"][1]  # type: ignore
+        mask_theta = (self.tracks.dtheta >= self.asr_params["dtheta_range"][0]) & (  # type: ignore
+            self.tracks.dtheta <= self.asr_params["dtheta_range"][1]  # type: ignore
         )
 
         if self.asr_params["use_p"]:  # type: ignore

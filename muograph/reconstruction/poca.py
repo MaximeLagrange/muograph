@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from fastprogress import progress_bar
 import numpy as np
 import math
+from dataclasses import dataclass
 
 from muograph.utils.save import AbsSave
 from muograph.utils.device import DEVICE
@@ -25,6 +26,14 @@ Provides class for computing POCA locations and POCA-based voxelized scattering 
 def are_parallel(v1: Tensor, v2: Tensor, tol: float = 1e-5) -> bool:
     cross_prod = torch.linalg.cross(v1, v2)
     return bool(torch.all(torch.abs(cross_prod) < tol).detach().cpu().item())
+
+
+@dataclass
+class POCAParams:
+    use_p: bool = False
+    p_clamp: float = 0.999
+    dtheta_clamp: float = 0.999
+    preds_clamp: float = 0.999
 
 
 class POCA(AbsSave, AbsVoxelInferer):
@@ -53,12 +62,7 @@ class POCA(AbsSave, AbsVoxelInferer):
         "poca_indices",
     ]
 
-    _poca_params: Dict[str, Union[bool, float]] = {
-        "use_p": False,
-        "p_clamp": 1.00,
-        "dtheta_clamp": 1.00,
-        "preds_clamp": 1.00,
-    }
+    _poca_params: POCAParams = POCAParams()
 
     _recompute_preds: bool = True
 
@@ -402,11 +406,11 @@ class POCA(AbsSave, AbsVoxelInferer):
             assigned tracks are set to 0.
         """
 
-        dtheta_max = torch.quantile(self.tracks.dtheta, q=self.poca_params["dtheta_clamp"])
+        dtheta_max = torch.quantile(self.tracks.dtheta, q=self.poca_params.dtheta_clamp)
         dtheta = torch.clamp(self.tracks.dtheta, max=dtheta_max)
 
-        if self.poca_params["use_p"]:
-            p_max = torch.quantile(self.tracks.p, q=self.poca_params["p_clamp"])
+        if self.poca_params.use_p:
+            p_max = torch.quantile(self.tracks.p, q=self.poca_params.p_clamp)
             p = torch.clamp(self.tracks.p, max=p_max)
             dtheta = torch.clamp(self.tracks.dtheta, max=dtheta_max)
             # score = (dtheta ** 2) * (torch.log(p ** 2)) / torch.log(p.mean() ** 2)
@@ -433,7 +437,7 @@ class POCA(AbsSave, AbsVoxelInferer):
 
         self._recompute_preds = False
 
-        voxel_rms_max = torch.quantile(voxel_rms, q=self.poca_params["preds_clamp"])
+        voxel_rms_max = torch.quantile(voxel_rms, q=self.poca_params.preds_clamp)
         voxel_rms = torch.clamp(voxel_rms, max=voxel_rms_max)
 
         return voxel_rms
@@ -460,12 +464,12 @@ class POCA(AbsSave, AbsVoxelInferer):
         track_indices = torch.nonzero(mask, as_tuple=True)[0]
 
         # dtheta values (clamped as in voxel_rms computation)
-        dtheta_max = torch.quantile(self.tracks.dtheta, q=self.poca_params["dtheta_clamp"])
+        dtheta_max = torch.quantile(self.tracks.dtheta, q=self.poca_params.dtheta_clamp)
         dtheta = torch.clamp(self.tracks.dtheta, max=dtheta_max)[mask]
 
         # p values (clamped if enabled)
-        if self.poca_params["use_p"]:
-            p_max = torch.quantile(self.tracks.p, q=self.poca_params["p_clamp"])
+        if self.poca_params.use_p:
+            p_max = torch.quantile(self.tracks.p, q=self.poca_params.p_clamp)
             p = torch.clamp(self.tracks.p, max=p_max)[mask]
         else:
             p = None
@@ -547,14 +551,20 @@ class POCA(AbsSave, AbsVoxelInferer):
         return full_mask
 
     @property
-    def poca_params(self) -> Dict[str, Union[bool, float]]:
+    def poca_params(self) -> POCAParams:
         return self._poca_params
 
     @poca_params.setter
-    def poca_params(self, value: Dict[str, bool]) -> None:
-        for key in value.keys():
-            if key in self._poca_params.keys():
-                if value[key] is not None:
-                    self._poca_params[key] = value[key]
+    def poca_params(self, value: POCAParams) -> None:
+        """Safely update POCA parameters while preserving non-overwritten defaults."""
+        if not isinstance(value, POCAParams):
+            raise TypeError("poca_params must be an instance of POCAParams")
+
+        if not hasattr(self, "_poca_params") or self._poca_params is None:
+            self._poca_params = POCAParams()
+
+        for key, val in value.__dict__.items():
+            if val is not None:
+                setattr(self._poca_params, key, val)
 
         self._recompute_preds = True

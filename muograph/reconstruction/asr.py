@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Dict, Union, List
+from typing import Optional, Tuple, Union, List, Dict
 import numpy as np
 from functools import partial
 import math
@@ -8,6 +8,7 @@ from pathlib import Path
 from fastprogress import progress_bar
 import h5py
 import matplotlib.pyplot as plt
+from dataclasses import dataclass
 
 from muograph.utils.save import AbsSave
 from muograph.tracking.tracking import TrackingMST
@@ -26,17 +27,22 @@ https://iopscience.iop.org/article/10.1088/1748-0221/9/11/P11019)).
 """
 
 
+@dataclass
+class ASRParams:
+    score_method: partial = partial(np.quantile, q=0.5)
+    p_range: Tuple[float, float] = (0.0, 1e7)  # MeV
+    dtheta_range: Tuple[float, float] = (0.0, math.pi / 3)
+    use_p: bool = False
+    dtheta_clamp: float = 0.999
+    p_clamp: float = 0.999
+
+
 class ASR(AbsSave, AbsVoxelInferer):
     _triggered_voxels: Optional[List[np.ndarray]] = None
     _n_mu_per_vox: Optional[Tensor] = None  # (Nx, Ny, Nz)
     _recompute_preds = True
 
-    _asr_params: Dict[str, value_type] = {
-        "score_method": partial(np.quantile, q=0.5),
-        "p_range": (0.0, 10000000),  # MeV
-        "dtheta_range": (0.0, math.pi / 3),
-        "use_p": False,
-    }
+    _asr_params: ASRParams = ASRParams()
 
     _vars_to_save = ["triggered_voxels"]
 
@@ -339,7 +345,7 @@ class ASR(AbsSave, AbsVoxelInferer):
 
     @staticmethod
     def get_asr_name(
-        asr_params: Dict[str, value_type],
+        asr_params: ASRParams,
     ) -> str:
         r"""
         Returns a string representing the ASR configuration based on its parameters.
@@ -355,10 +361,10 @@ class ASR(AbsSave, AbsVoxelInferer):
                 func_name += "_{}={}".format(arg, values[i])
             return func_name
 
-        method = "method_{}_".format(get_partial_name_args(asr_params["score_method"]))  # type: ignore
-        dtheta = "{:.2f}_{:.2f}_rad_".format(asr_params["dtheta_range"][0], asr_params["dtheta_range"][1])  # type: ignore
-        dp = "{:.0f}_{:.0f}_MeV_".format(asr_params["p_range"][0], asr_params["p_range"][1])  # type: ignore
-        use_p = "use_p_{}".format(asr_params["use_p"])
+        method = "method_{}_".format(get_partial_name_args(asr_params.score_method))  # type: ignore
+        dtheta = "{:.2f}_{:.2f}_rad_".format(asr_params.dtheta_range[0], asr_params.dtheta_range[1])  # type: ignore
+        dp = "{:.0f}_{:.0f}_MeV_".format(asr_params.p_range[0], asr_params.p_range[1])  # type: ignore
+        use_p = "use_p_{}".format(asr_params.use_p)
 
         asr_name = method + dtheta + dp + use_p
 
@@ -424,22 +430,27 @@ class ASR(AbsSave, AbsVoxelInferer):
             [[[] for _ in range(self.voi.n_vox_xyz[2])] for _ in range(self.voi.n_vox_xyz[1])] for _ in range(self.voi.n_vox_xyz[0])
         ]
 
-        if self._asr_params["use_p"]:
-            score = np.log(self.tracks.dtheta.detach().cpu().numpy() * self.tracks.E.detach().cpu().numpy())
+        dtheta_max = torch.quantile(self.tracks.dtheta, q=self.asr_params.dtheta_clamp)
+        dtheta = torch.clamp(self.tracks.dtheta, max=dtheta_max)
+
+        if self._asr_params.use_p:
+            p_max = torch.quantile(self.tracks.p, q=self.asr_params.p_clamp)
+            p = torch.clamp(self.tracks.p, max=p_max)
+            score = np.log(0.0000001 + dtheta.detach().cpu().numpy() * p.detach().cpu().numpy())
         else:
             # score = np.log(self.tracks.dtheta.detach().cpu().numpy())
-            score = self.tracks.dtheta.detach().cpu().numpy()
+            score = dtheta.detach().cpu().numpy()
             # score = self.theta_xy_in[0].detach().cpu().numpy()
             # score = self.tracks.theta_in.detach().cpu().numpy()
 
-        mask_E = (self.tracks.E >= self.asr_params["p_range"][0]) & (  # type: ignore
-            self.tracks.E <= self.asr_params["p_range"][1]  # type: ignore
+        mask_E = (self.tracks.E >= self.asr_params.p_range[0]) & (  # type: ignore
+            self.tracks.E <= self.asr_params.p_range[1]  # type: ignore
         )
-        mask_theta = (self.tracks.dtheta >= self.asr_params["dtheta_range"][0]) & (  # type: ignore
-            self.tracks.dtheta <= self.asr_params["dtheta_range"][1]  # type: ignore
+        mask_theta = (self.tracks.dtheta >= self.asr_params.dtheta_range[0]) & (  # type: ignore
+            self.tracks.dtheta <= self.asr_params.dtheta_range[1]  # type: ignore
         )
 
-        if self.asr_params["use_p"]:  # type: ignore
+        if self.asr_params.use_p:  # type: ignore
             mask = mask_E & mask_theta
         else:
             mask = mask_E
@@ -459,14 +470,14 @@ class ASR(AbsSave, AbsVoxelInferer):
             for j in range(self.voi.n_vox_xyz[1]):
                 for k in range(self.voi.n_vox_xyz[2]):
                     if score_list[i][j][k] != []:
-                        vox_density_preds[i, j, k] = self.asr_params["score_method"](score_list[i][j][k])  # type: ignore
+                        vox_density_preds[i, j, k] = self.asr_params.score_method(score_list[i][j][k])  # type: ignore
                         self.n_mu_per_vox_test[i, j, k] = len(score_list[i][j][k])
         if vox_density_preds.isnan().any():
             raise ValueError("Prediction contains NaN values")
         self.score_list = score_list
         self._recompute_preds = False
 
-        if self.asr_params["use_p"]:  # type: ignore
+        if self.asr_params.use_p:
             return torch.exp(vox_density_preds)
         else:
             return vox_density_preds
@@ -586,24 +597,29 @@ class ASR(AbsSave, AbsVoxelInferer):
         return (self.tracks.theta_xy_out[0], self.tracks.theta_xy_out[1])
 
     @property
-    def asr_params(self) -> Dict[str, value_type]:
+    def asr_params(self) -> ASRParams:
         r"""
         The parameters of the ASR algorithm.
         """
         return self._asr_params
 
     @asr_params.setter
-    def asr_params(self, value: Dict[str, value_type]) -> None:
+    def asr_params(self, value: ASRParams) -> None:
         r"""
         Sets the parameters of the ASR algorithm.
         Args:
             - Dict containing the parameters name and value. Only parameters with
             valid name and non `None` values will be updated.
         """
-        for key in value.keys():
-            if key in self._asr_params.keys():
-                if value[key] is not None:
-                    self._asr_params[key] = value[key]
+        if not isinstance(value, ASRParams):
+            raise TypeError("asr_params must be an instance of ASRParams")
+
+        if not hasattr(self, "_asr_params") or self._asr_params is None:
+            self._asr_params = ASRParams()
+
+        for key, val in value.__dict__.items():
+            if val is not None:
+                setattr(self._asr_params, key, val)
 
         self._recompute_preds = True
 

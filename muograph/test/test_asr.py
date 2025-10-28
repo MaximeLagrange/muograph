@@ -1,6 +1,6 @@
 from muograph.hits.hits import Hits
 from muograph.tracking.tracking import Tracking, TrackingMST
-from muograph.reconstruction.asr import ASR
+from muograph.reconstruction.asr import ASR, ASRParams
 from muograph.volume.volume import Volume
 import os
 from pathlib import Path
@@ -45,12 +45,12 @@ def test_asr_predictions() -> None:
 
     asr = ASR(voi=VOI, tracking=mst)
 
-    asr.asr_params = {
-        "score_method": partial(np.quantile, q=0.8),
-        "p_range": (0.0, 10000000),  # MeV
-        "dtheta_range": (0.1 * math.pi / 180, 10 * math.pi / 180),
-        "use_p": False,
-    }
+    asr.asr_params = ASRParams(
+        score_method=partial(np.quantile, q=0.8),
+        p_range=(0.0, 10000000),  # MeV
+        dtheta_range=(0.1 * math.pi / 180, 10 * math.pi / 180),
+        use_p=False,
+    )
 
     n_poca_uranium_x_region = asr.xyz_voxel_pred[14:16].float().mean()
     n_poca_empty_x_region = asr.xyz_voxel_pred[-3:].float().mean()

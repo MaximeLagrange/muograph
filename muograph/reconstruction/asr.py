@@ -344,7 +344,7 @@ class ASR(AbsSave, AbsVoxelInferer):
         return triggered_voxels
 
     @staticmethod
-    def get_asr_name(
+    def get_name_from_params(
         asr_params: ASRParams,
     ) -> str:
         r"""
@@ -365,9 +365,11 @@ class ASR(AbsSave, AbsVoxelInferer):
         dtheta = "{:.2f}_{:.2f}_rad_".format(asr_params.dtheta_range[0], asr_params.dtheta_range[1])  # type: ignore
         dp = "{:.0f}_{:.0f}_MeV_".format(asr_params.p_range[0], asr_params.p_range[1])  # type: ignore
         use_p = "use_p_{}".format(asr_params.use_p)
+        p_clamp = "_pclamp_{:.3f}".format(asr_params.p_clamp) if asr_params.use_p else ""
+        dtheta_clamp = "_dthetaclamp_{:.3f}".format(asr_params.dtheta_clamp)
 
-        asr_name = method + dtheta + dp + use_p
-
+        asr_name = method + dtheta + dp + use_p + p_clamp + dtheta_clamp
+        asr_name = asr_name.replace(".", "p")
         return asr_name
 
     @staticmethod
@@ -651,3 +653,10 @@ class ASR(AbsSave, AbsVoxelInferer):
     @n_mu_per_vox.setter
     def n_mu_per_vox(self, value: Tensor) -> None:
         self._n_mu_per_vox = value
+
+    @property
+    def name(self) -> str:
+        r"""
+        The name of the ASR configuration based on its parameters.
+        """
+        return self.get_name_from_params(self.asr_params)

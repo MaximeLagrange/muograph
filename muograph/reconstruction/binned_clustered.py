@@ -32,6 +32,8 @@ class BCAParams:
     p_range: Tuple[float, float] = (0.0, 10000000)
     dtheta_range: Tuple[float, float] = (0.0, math.pi / 3)
     use_p: bool = False
+    p_clamp: float = 0.999
+    dtheta_clamp: float = 0.999
 
 
 class BCA(POCA, AbsVoxelInferer):
@@ -373,7 +375,7 @@ class BCA(POCA, AbsVoxelInferer):
         Returns:
             Path: Path to the BCA directory.
         """
-        return Path(str(self.output_dir) + "/" + self.bca_name + "/")
+        return Path(str(self.output_dir) + "/" + self.name + "/")
 
     def get_xyz_voxel_pred(self) -> Tensor:
         """
@@ -426,16 +428,23 @@ class BCA(POCA, AbsVoxelInferer):
         # apply dtheta, p cuts
         self._filter_events(mask=p_mask & dtheta_mask)
 
+        # prepare variables
+        p_max = torch.quantile(self.bca_tracks.p, q=self.bca_params.p_clamp)
+        p = torch.clamp(self.bca_tracks.p, max=p_max)
+
+        dtheta_max = torch.quantile(self.bca_tracks.dtheta, q=self.bca_params.dtheta_clamp)
+        dtheta = torch.clamp(self.bca_tracks.dtheta, max=dtheta_max)
+
         # compute voxels distribution
         self.score_list = self.compute_voxels_distribution(
             metric_method=self.bca_params.metric_method,  # type: ignore
             use_p=self.bca_params.use_p,  # type: ignore
             n_min_per_vox=self.bca_params.n_min_per_vox,  # type: ignore
             voi=self.voi,
-            momentum=self.bca_tracks.E,
+            momentum=p,
             bca_indices=self.bca_indices,
             poca_points=self.bca_poca_points,
-            dtheta=self.bca_tracks.dtheta,
+            dtheta=dtheta,
         )
 
         # compute fina scores
@@ -468,13 +477,15 @@ class BCA(POCA, AbsVoxelInferer):
         dp = "{:.0f}_{:.0f}_MeV_".format(self.bca_params.p_range[0], self.bca_params.p_range[1])  # type: ignore
         n_min_max = "n_min_max_{}_{}_".format(self.bca_params.n_min_per_vox, self.bca_params.n_max_per_vox)
         use_p = "use_p_{}".format(self.bca_params.use_p)
+        p_clamp = "_pclamp_{:.3f}".format(self.bca_params.p_clamp) if self.bca_params.use_p else ""
+        dtheta_clamp = "_dthetaclamp_{:.3f}".format(self.bca_params.dtheta_clamp)
 
-        bca_name = method + metric + dtheta + dp + n_min_max + use_p
+        bca_name = method + metric + dtheta + dp + n_min_max + use_p + p_clamp + dtheta_clamp
         bca_name = bca_name.replace(".", "p")
         return bca_name
 
     @property
-    def bca_name(self) -> str:
+    def name(self) -> str:
         r"""
         The name of the bca algorithm given its parameters
         """

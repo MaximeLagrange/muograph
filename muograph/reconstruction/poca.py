@@ -298,6 +298,23 @@ class POCA(AbsSave, AbsVoxelInferer):
 
         return full_mask
 
+    @staticmethod
+    def get_name_from_params(poca_params: POCAParams) -> str:
+        """
+        Generate a string name for the POCA instance based on its parameters.
+
+        Args:
+            asr_params (POCAParams): POCA parameters.
+        """
+        method = "POCA_"
+        p_clamp = "_p_clamp_{:.3f}".format(poca_params.p_clamp) if poca_params.use_p else ""
+        dtheta_clamp = "_dtheta_clamp_{:.3f}".format(poca_params.dtheta_clamp)
+        use_p = "_use_p" if poca_params.use_p else ""
+        preds_clamp = "_preds_clamp_{:.3f}".format(poca_params.preds_clamp)
+        name = method + dtheta_clamp + p_clamp + use_p + preds_clamp
+        name = name.replace(".", "p")
+        return name
+
     def plot_poca_event(self, event: int, proj: str = "XZ", voi: Optional[Volume] = None, figname: Optional[str] = None) -> None:
         """
         Plot a single muon event and its POCA location in 2D (XZ or YZ projection).
@@ -568,3 +585,10 @@ class POCA(AbsSave, AbsVoxelInferer):
                 setattr(self._poca_params, key, val)
 
         self._recompute_preds = True
+
+    @property
+    def name(self) -> str:
+        r"""
+        The name of the POCA configuration based on its parameters.
+        """
+        return self.get_name_from_params(self.poca_params)

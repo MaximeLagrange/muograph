@@ -51,9 +51,6 @@ class Hits:
     def __init__(
         self,
         data: Union[str, Path, pd.DataFrame],
-        csv_filename: Optional[str] = None,
-        df: Optional[pd.DataFrame] = None,
-        root_file: Optional[str] = None,
         plane_labels: Optional[Tuple[int, ...]] = None,
         spatial_res: Optional[Tuple[float, float, float]] = None,
         energy_range: Optional[Tuple[float, float]] = None,

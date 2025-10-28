@@ -18,7 +18,7 @@ def get_hits(hits_file: str) -> Hits:
     """
     hits = Hits(
         plane_labels=(0, 1, 2),
-        csv_filename=hits_file,
+        data=hits_file,
         spatial_res=(1.0, 1.0, 0.0),
         energy_range=(0.0, 1_000_000),
         efficiency=0.90,

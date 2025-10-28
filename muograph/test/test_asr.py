@@ -18,7 +18,7 @@ OUPUT_DIR = str(Path(muograph_path) / "../output_test/")
 def get_mst(hits_file: str) -> TrackingMST:
     hits_in = Hits(
         plane_labels=(0, 1, 2),
-        csv_filename=hits_file,
+        data=hits_file,
         spatial_res=(1.0, 1.0, 0.0),
         energy_range=(0.0, 1_000_000),
         efficiency=0.98,
@@ -27,7 +27,7 @@ def get_mst(hits_file: str) -> TrackingMST:
 
     hits_out = Hits(
         plane_labels=(3, 4, 5),
-        csv_filename=hits_file,
+        data=hits_file,
         spatial_res=(1.0, 1.0, 0.0),
         energy_range=(0.0, 1_000_000),
         efficiency=0.98,

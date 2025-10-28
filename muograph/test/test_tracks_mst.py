@@ -23,7 +23,7 @@ def get_tracks(hits_file: str, output_dir: Optional[str] = None) -> Tuple[Tracki
     """
     hits_in = Hits(
         plane_labels=(0, 1, 2),
-        csv_filename=hits_file,
+        data=hits_file,
         spatial_res=(1.0, 1.0, 0.0),
         energy_range=(0.0, 1_000_000),
         efficiency=EFFICIENCY,
@@ -32,7 +32,7 @@ def get_tracks(hits_file: str, output_dir: Optional[str] = None) -> Tuple[Tracki
 
     hits_out = Hits(
         plane_labels=(3, 4, 5),
-        csv_filename=hits_file,
+        data=hits_file,
         spatial_res=(1.0, 1.0, 0.0),
         energy_range=(0.0, 1_000_000),
         efficiency=EFFICIENCY,
@@ -58,7 +58,7 @@ def get_tracking_mst(hits_file: str, output_dir: Optional[str] = None) -> Tracki
     """
     hits_in = Hits(
         plane_labels=(0, 1, 2),
-        csv_filename=hits_file,
+        data=hits_file,
         spatial_res=(1.0, 1.0, 0.0),
         energy_range=(0.0, 1_000_000),
         efficiency=0.98,
@@ -67,7 +67,7 @@ def get_tracking_mst(hits_file: str, output_dir: Optional[str] = None) -> Tracki
 
     hits_out = Hits(
         plane_labels=(3, 4, 5),
-        csv_filename=hits_file,
+        data=hits_file,
         spatial_res=(1.0, 1.0, 0.0),
         energy_range=(0.0, 1_000_000),
         efficiency=0.98,

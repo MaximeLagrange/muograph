@@ -79,7 +79,7 @@ class SSIM:
 
     @staticmethod
     def get_unbiased_std(image_3d: Tensor) -> float:
-        return (1 / (image_3d.numel() - 1) * (image_3d - image_3d.mean()) ** 2).sum().sqrt()
+        return (1 / (image_3d.numel() - 1) * (image_3d - image_3d.mean()) ** 2).sum().sqrt().item()
 
     @staticmethod
     def get_mean_intensity(image_3d: Tensor) -> float:
@@ -128,7 +128,7 @@ class SSIM:
         mu_x, mu_y = SSIM.get_mean_intensity(image_x), SSIM.get_mean_intensity(image_y)
         c1 = (data_range * k1) ** 2
 
-        return ((c1 + (2 * mu_x * mu_y)) / (mu_x**2 + mu_y**2 + c1))
+        return (c1 + (2 * mu_x * mu_y)) / (mu_x**2 + mu_y**2 + c1)
 
     @staticmethod
     def get_structure_comparision(image_x: Tensor, image_y: Tensor, data_range: float, k3: float) -> float:

@@ -3,7 +3,7 @@ import pandas as pd
 import torch
 from torch import Tensor
 import uproot  # type: ignore
-from typing import Optional, Tuple, Dict
+from typing import Optional, Tuple, Dict, Union
 import matplotlib.pyplot as plt
 import awkward as ak  # type: ignore
 
@@ -50,6 +50,7 @@ class Hits:
 
     def __init__(
         self,
+        data: Union[str, Path, pd.DataFrame],
         csv_filename: Optional[str] = None,
         df: Optional[pd.DataFrame] = None,
         root_file: Optional[str] = None,
@@ -61,78 +62,45 @@ class Hits:
         n_mu_max: Optional[int] = None,
     ) -> None:
         r"""
-        Initializes a Hits object to represent particle hit data from a detector, with input from either
-        a CSV file path or an existing DataFrame.
+        Initializes a Hits object from a given data source.
+        The data can be a CSV file, ROOT file, HDF5 file, or an existing DataFrame.
 
         Args:
-            csv_filename (Optional[str]): The file path to the CSV containing hit and energy data.
-                Either `csv_filename` or `df` must be provided, but not both.
-            df (Optional[pd.DataFrame]): A DataFrame containing hit and energy data. Use this instead of
-                loading data from a CSV file.
-            root_file (Optional[str]): The file path to the root file containing hit and energy data.
-            plane_labels (Optional[Tuple[int, ...]]): Specifies the plane labels to include from the data,
-                as a tuple of integers. Only hits from these planes will be loaded if provided.
-            spatial_res (Optional[Tuple[float, float, float]]): The spatial resolution of detector panels
-                along the x, y, and z axes, in units specified by `input_unit`. Assumes uniform resolution
-                across all panels if provided.
-            energy_range (Optional[Tuple[float, float]]): A tuple specifying the minimum and maximum energy
-                range for hits to be included. Only hits within this range will be processed if provided.
-            efficiency (float): The efficiency factor of the detector panels, applied uniformly across all panels.
-                Defaults to 1.0, representing full efficiency.
-            input_unit (str): The unit of measurement for the input data (e.g., "mm", "cm"). Data will be rescaled to
-                millimeters if another unit is specified. Defaults to "mm".
+            data (str | Path | pd.DataFrame): Path to file or DataFrame containing hit and energy data.
+            plane_labels (tuple[int], optional): Detector plane labels.
+            spatial_res (tuple[float], optional): Spatial resolution (x, y, z).
+            energy_range (tuple[float], optional): Min and max energy range for filtering.
+            efficiency (float): Detector efficiency [0, 1].
+            input_unit (str): Input unit ("mm", "cm", "dm", "m").
+            n_mu_max (int, optional): Limit number of events.
         """
+
+        self.input_unit = input_unit
+        if input_unit not in self._unit_coef:
+            raise ValueError("Input unit must be mm, cm, dm or m")
+
+        if not (0.0 < efficiency <= 1.0):
+            raise ValueError("Efficency must be positive and <= 1.")
+        self.efficiency = efficiency  # in %
+
+        # Energy range
+        self.energy_range = energy_range
 
         # Detector panel parameters
         self.spatial_res = (
             torch.tensor(spatial_res, dtype=dtype_hit, device=DEVICE) if spatial_res is not None else torch.zeros(3, dtype=dtype_hit, device=DEVICE)
         )
 
-        self.efficiency = efficiency  # in %
-        if (efficiency > 1.0) | (efficiency < 0.0):
-            raise ValueError("Efficency must be positive and < 1.")
-
-        # Energy range
-        self.energy_range = energy_range
-
-        # Load or create hits DataFrame
-        if csv_filename is None and df is None and root_file is None:
-            raise ValueError("Provide either csv_filename, root_file or df.")
-
-        if csv_filename is not None:
-            self.input_unit = input_unit
-            if input_unit not in allowed_d_units:
-                raise ValueError("Input unit must be mm, cm, dm or m")
-
-            self._df = self.get_df_from_csv(csv_filename, n_mu_max)
-
-        elif df is not None:
-            self.input_unit = input_unit
-            if input_unit not in allowed_d_units:
-                raise ValueError("Input unit must be mm, cm, dm or m")
-
-            self._df = df
-
-        elif root_file is not None:
-            self.input_unit = input_unit
-            if input_unit not in allowed_d_units:
-                raise ValueError("Input unit must be mm, cm, dm or m")
-
-            self._df = self._get_df_from_root(root_file)
-        else:
-            raise ValueError("Either csv_filename or df must be provided.")
+        # Load data
+        self._df = self._load_data(data, n_mu_max)
 
         # Panels label
-        self.plane_labels = plane_labels if plane_labels is not None else self.get_panels_labels_from_df(self._df)
+        self.plane_labels = plane_labels or self.get_panels_labels_from_df(self._df)
 
         # Filter events with E out of energy_range
         if self.energy_range is not None:
             energy_mask = (self.E > self.energy_range[0]) & (self.E < self.energy_range[-1])
             self._filter_events(energy_mask)
-
-        # Detector efficiency
-        if (self.efficiency < 0.0) | (self.efficiency > 1.0):
-            raise ValueError("Panels efficiency must be in [0., 1.].")
 
     def __repr__(self) -> str:
         description = f"Collection of hits from {self.n_mu:,d} muons " f"on {self.n_panels} detector panels"
@@ -148,8 +116,24 @@ class Hits:
 
         return description
 
+    def _load_data(self, data: Union[str, Path, pd.DataFrame], n_mu_max: Optional[int]) -> pd.DataFrame:
+        if isinstance(data, pd.DataFrame):
+            return data
+
+        path = Path(data)
+        if not path.exists():
+            raise FileNotFoundError(f"File not found: {path}")
+
+        ext = path.suffix.lower()
+        if ext == ".csv":
+            return self._get_df_from_csv(path, n_mu_max)
+        elif ext == ".root":
+            return self._get_df_from_root(path, n_mu_max)
+        else:
+            raise ValueError(f"Unsupported file type: {ext}, must be .csv or .root")
+
     @staticmethod
-    def _get_df_from_root(root_file: str, n_mu_max: Optional[int] = None) -> pd.DataFrame:
+    def _get_df_from_root(root_file: Union[Path, str], n_mu_max: Optional[int] = None) -> pd.DataFrame:
         """
         Load ROOT file and return a Pandas DataFrame with event data.
 
@@ -211,7 +195,7 @@ class Hits:
         return df.iloc[:n_mu_max] if n_mu_max is not None else df
 
     @staticmethod
-    def get_df_from_csv(csv_filename: str, n_mu_max: Optional[int] = None) -> pd.DataFrame:
+    def _get_df_from_csv(csv_filename: Union[Path, str], n_mu_max: Optional[int] = None) -> pd.DataFrame:
         r"""
         Reads a CSV file into a DataFrame.
 
@@ -285,6 +269,7 @@ class Hits:
         """
         if "E" not in df:
             raise KeyError("Column 'E' not found in the DataFrame. Muon energy set to 0.")
+
         return torch.tensor(df["E"].values, dtype=dtype_E, device=DEVICE)
 
     @staticmethod
@@ -363,9 +348,9 @@ class Hits:
             mask: (N,) Boolean tensor. Muons with False elements will be removed.
         """
 
+        self.E = self.E[mask]
         self.reco_hits = self.reco_hits[:, :, mask]
         self.gen_hits = self.gen_hits[:, :, mask]
-        self.E = self.E[mask]
 
     def plot(
         self,

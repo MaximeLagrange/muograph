@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 from muograph.utils.device import DEVICE
 from muograph.tracking.tracking import TrackingMST
-from muograph.reconstruction.poca import POCA
+from muograph.reconstruction.poca import POCA, POCAParams
 from muograph.volume.volume import Volume
 from muograph.reconstruction.voxel_inferer import AbsVoxelInferer
 
@@ -24,20 +24,17 @@ to detect high-Z material using cosmic muons, 2013 JINST 8 P10013,
 
 
 @dataclass
-class BCAParams:
+class BCAParams(POCAParams):
     n_max_per_vox: int = 50
     n_min_per_vox: int = 3
     score_method: partial = partial(torch.quantile, q=0.5)
     metric_method: partial = partial(torch.log)
     p_range: Tuple[float, float] = (0.0, 10000000)
     dtheta_range: Tuple[float, float] = (0.0, math.pi / 3)
-    use_p: bool = False
-    p_clamp: float = 0.999
-    dtheta_clamp: float = 0.999
 
 
-class BCA(POCA, AbsVoxelInferer):
-    _bca_params: BCAParams = BCAParams()
+class BCA(POCA[BCAParams], AbsVoxelInferer):
+    _params: BCAParams = BCAParams()
 
     _vars_to_save = ["xyz_voxel_pred", "n_poca_per_vox"]
 
@@ -386,7 +383,7 @@ class BCA(POCA, AbsVoxelInferer):
 
         Compute voxel-wise scattering density predictions.
 
-        Uses parameters stored in `_bca_params`. The algorithm calculates:
+        Uses parameters stored in `_params`. The algorithm calculates:
             - Scattering density predictions (`pred`).
             - Number of POCA points used for each voxel's prediction (`hit_per_voxel`).
 
@@ -405,7 +402,7 @@ class BCA(POCA, AbsVoxelInferer):
             self.nhit,
             self.nhit_rejected,
         ) = self.compute_low_theta_events_voxel_wise_mask(
-            n_max_per_voxel=int(self.bca_params.n_max_per_vox),  # type: ignore
+            n_max_per_voxel=int(self.params.n_max_per_vox),  # type: ignore
             voi=self.voi,
             bca_indices=self.bca_indices,
             dtheta=self.bca_tracks.dtheta,
@@ -413,33 +410,33 @@ class BCA(POCA, AbsVoxelInferer):
         self._filter_events(self.mask)
 
         # momentum cut
-        if self.bca_params.use_p:
-            p_mask = (self.bca_tracks.E > self.bca_params.p_range[0]) & (  # type: ignore
-                self.bca_tracks.E < self.bca_params.p_range[1]  # type: ignore
+        if self.params.use_p:
+            p_mask = (self.bca_tracks.E > self.params.p_range[0]) & (  # type: ignore
+                self.bca_tracks.E < self.params.p_range[1]  # type: ignore
             )
         else:
             p_mask = torch.ones_like(self.bca_tracks.dtheta, dtype=torch.bool, device=DEVICE)
 
         # scattering angle cut
-        dtheta_mask = (self.bca_tracks.dtheta > self.bca_params.dtheta_range[0]) & (  # type: ignore
-            self.bca_tracks.dtheta < self.bca_params.dtheta_range[1]  # type: ignore
+        dtheta_mask = (self.bca_tracks.dtheta > self.params.dtheta_range[0]) & (  # type: ignore
+            self.bca_tracks.dtheta < self.params.dtheta_range[1]  # type: ignore
         )
 
         # apply dtheta, p cuts
         self._filter_events(mask=p_mask & dtheta_mask)
 
         # prepare variables
-        p_max = torch.quantile(self.bca_tracks.p, q=self.bca_params.p_clamp)
+        p_max = torch.quantile(self.bca_tracks.p, q=self.params.p_clamp)
         p = torch.clamp(self.bca_tracks.p, max=p_max)
 
-        dtheta_max = torch.quantile(self.bca_tracks.dtheta, q=self.bca_params.dtheta_clamp)
+        dtheta_max = torch.quantile(self.bca_tracks.dtheta, q=self.params.dtheta_clamp)
         dtheta = torch.clamp(self.bca_tracks.dtheta, max=dtheta_max)
 
         # compute voxels distribution
         self.score_list = self.compute_voxels_distribution(
-            metric_method=self.bca_params.metric_method,  # type: ignore
-            use_p=self.bca_params.use_p,  # type: ignore
-            n_min_per_vox=self.bca_params.n_min_per_vox,  # type: ignore
+            metric_method=self.params.metric_method,  # type: ignore
+            use_p=self.params.use_p,  # type: ignore
+            n_min_per_vox=self.params.n_min_per_vox,  # type: ignore
             voi=self.voi,
             momentum=p,
             bca_indices=self.bca_indices,
@@ -448,7 +445,10 @@ class BCA(POCA, AbsVoxelInferer):
         )
 
         # compute fina scores
-        pred, self._hit_per_voxel = self.compute_final_scores(score_list=self.score_list, score_method=self.bca_params.score_method)  # type: ignore
+        pred, self._hit_per_voxel = self.compute_final_scores(score_list=self.score_list, score_method=self.params.score_method)  # type: ignore
+
+        pred_max = torch.quantile(pred, q=self.params.preds_clamp)
+        pred = torch.clamp(pred, max=pred_max)
 
         self._recompute_preds = False
 
@@ -471,16 +471,17 @@ class BCA(POCA, AbsVoxelInferer):
                 func_name += "_{}={}".format(arg, values[i])
             return func_name
 
-        method = "method_{}_".format(get_partial_name_args(self.bca_params.score_method))  # type: ignore
-        metric = "metric_{}_".format(get_partial_name_args(self.bca_params.metric_method))  # type: ignore
-        dtheta = "{:.1f}_{:.1f}_mrad_".format(self.bca_params.dtheta_range[0] * 1000, self.bca_params.dtheta_range[1] * 1000)  # type: ignore
-        dp = "{:.0f}_{:.0f}_MeV_".format(self.bca_params.p_range[0], self.bca_params.p_range[1])  # type: ignore
-        n_min_max = "n_min_max_{}_{}_".format(self.bca_params.n_min_per_vox, self.bca_params.n_max_per_vox)
-        use_p = "use_p_{}".format(self.bca_params.use_p)
-        p_clamp = "_pclamp_{:.3f}".format(self.bca_params.p_clamp) if self.bca_params.use_p else ""
-        dtheta_clamp = "_dthetaclamp_{:.3f}".format(self.bca_params.dtheta_clamp)
+        method = "method_{}_".format(get_partial_name_args(self.params.score_method))  # type: ignore
+        metric = "metric_{}_".format(get_partial_name_args(self.params.metric_method))  # type: ignore
+        dtheta = "{:.1f}_{:.1f}_mrad_".format(self.params.dtheta_range[0] * 1000, self.params.dtheta_range[1] * 1000)  # type: ignore
+        dp = "{:.0f}_{:.0f}_MeV_".format(self.params.p_range[0], self.params.p_range[1])  # type: ignore
+        n_min_max = "n_min_max_{}_{}_".format(self.params.n_min_per_vox, self.params.n_max_per_vox)
+        use_p = "use_p_{}".format(self.params.use_p)
+        p_clamp = "_pclamp_{:.3f}".format(self.params.p_clamp) if self.params.use_p else ""
+        dtheta_clamp = "_dthetaclamp_{:.3f}".format(self.params.dtheta_clamp)
+        preds_clamp = "_preds_clamp_{:.3f}".format(self.params.preds_clamp)
 
-        bca_name = method + metric + dtheta + dp + n_min_max + use_p + p_clamp + dtheta_clamp
+        bca_name = method + metric + dtheta + dp + n_min_max + use_p + p_clamp + dtheta_clamp + preds_clamp
         bca_name = bca_name.replace(".", "p")
         return bca_name
 
@@ -492,14 +493,14 @@ class BCA(POCA, AbsVoxelInferer):
         return self.get_bca_name()
 
     @property
-    def bca_params(self) -> BCAParams:
+    def params(self) -> BCAParams:
         r"""
         The parameters of the bca algorithm.
         """
-        return self._bca_params
+        return self._params
 
-    @bca_params.setter
-    def bca_params(self, value: BCAParams) -> None:
+    @params.setter
+    def params(self, value: BCAParams) -> None:
         r"""
         Sets the parameters of the bca algorithm.
         Args:
@@ -507,14 +508,14 @@ class BCA(POCA, AbsVoxelInferer):
             valid name and non `None` values wil be updated.
         """
         if not isinstance(value, BCAParams):
-            raise TypeError("bca_params must be an instance of BCAParams")
+            raise TypeError("params must be an instance of BCAParams")
 
-        if not hasattr(self, "_bca_params") or self._bca_params is None:
-            self._bca_params = BCAParams()
+        if not hasattr(self, "_params") or self._params is None:
+            self._params = BCAParams()
 
         for key, val in value.__dict__.items():
             if val is not None:
-                setattr(self._bca_params, key, val)
+                setattr(self._params, key, val)
 
         self._recompute_preds = True
 

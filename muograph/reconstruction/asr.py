@@ -42,7 +42,7 @@ class ASR(AbsSave, AbsVoxelInferer):
     _n_mu_per_vox: Optional[Tensor] = None  # (Nx, Ny, Nz)
     _recompute_preds = True
 
-    _asr_params: ASRParams = ASRParams()
+    _params: ASRParams = ASRParams()
 
     _vars_to_save = ["triggered_voxels"]
 
@@ -345,7 +345,7 @@ class ASR(AbsSave, AbsVoxelInferer):
 
     @staticmethod
     def get_name_from_params(
-        asr_params: ASRParams,
+        params: ASRParams,
     ) -> str:
         r"""
         Returns a string representing the ASR configuration based on its parameters.
@@ -361,12 +361,12 @@ class ASR(AbsSave, AbsVoxelInferer):
                 func_name += "_{}={}".format(arg, values[i])
             return func_name
 
-        method = "method_{}_".format(get_partial_name_args(asr_params.score_method))  # type: ignore
-        dtheta = "{:.2f}_{:.2f}_rad_".format(asr_params.dtheta_range[0], asr_params.dtheta_range[1])  # type: ignore
-        dp = "{:.0f}_{:.0f}_MeV_".format(asr_params.p_range[0], asr_params.p_range[1])  # type: ignore
-        use_p = "use_p_{}".format(asr_params.use_p)
-        p_clamp = "_pclamp_{:.3f}".format(asr_params.p_clamp) if asr_params.use_p else ""
-        dtheta_clamp = "_dthetaclamp_{:.3f}".format(asr_params.dtheta_clamp)
+        method = "method_{}_".format(get_partial_name_args(params.score_method))  # type: ignore
+        dtheta = "{:.2f}_{:.2f}_rad_".format(params.dtheta_range[0], params.dtheta_range[1])  # type: ignore
+        dp = "{:.0f}_{:.0f}_MeV_".format(params.p_range[0], params.p_range[1])  # type: ignore
+        use_p = "use_p_{}".format(params.use_p)
+        p_clamp = "_pclamp_{:.3f}".format(params.p_clamp) if params.use_p else ""
+        dtheta_clamp = "_dthetaclamp_{:.3f}".format(params.dtheta_clamp)
 
         asr_name = method + dtheta + dp + use_p + p_clamp + dtheta_clamp
         asr_name = asr_name.replace(".", "p")
@@ -432,11 +432,11 @@ class ASR(AbsSave, AbsVoxelInferer):
             [[[] for _ in range(self.voi.n_vox_xyz[2])] for _ in range(self.voi.n_vox_xyz[1])] for _ in range(self.voi.n_vox_xyz[0])
         ]
 
-        dtheta_max = torch.quantile(self.tracks.dtheta, q=self.asr_params.dtheta_clamp)
+        dtheta_max = torch.quantile(self.tracks.dtheta, q=self.params.dtheta_clamp)
         dtheta = torch.clamp(self.tracks.dtheta, max=dtheta_max)
 
-        if self._asr_params.use_p:
-            p_max = torch.quantile(self.tracks.p, q=self.asr_params.p_clamp)
+        if self._params.use_p:
+            p_max = torch.quantile(self.tracks.p, q=self.params.p_clamp)
             p = torch.clamp(self.tracks.p, max=p_max)
             score = np.log(0.0000001 + dtheta.detach().cpu().numpy() * p.detach().cpu().numpy())
         else:
@@ -445,14 +445,14 @@ class ASR(AbsSave, AbsVoxelInferer):
             # score = self.theta_xy_in[0].detach().cpu().numpy()
             # score = self.tracks.theta_in.detach().cpu().numpy()
 
-        mask_E = (self.tracks.E >= self.asr_params.p_range[0]) & (  # type: ignore
-            self.tracks.E <= self.asr_params.p_range[1]  # type: ignore
+        mask_E = (self.tracks.E >= self.params.p_range[0]) & (  # type: ignore
+            self.tracks.E <= self.params.p_range[1]  # type: ignore
         )
-        mask_theta = (self.tracks.dtheta >= self.asr_params.dtheta_range[0]) & (  # type: ignore
-            self.tracks.dtheta <= self.asr_params.dtheta_range[1]  # type: ignore
+        mask_theta = (self.tracks.dtheta >= self.params.dtheta_range[0]) & (  # type: ignore
+            self.tracks.dtheta <= self.params.dtheta_range[1]  # type: ignore
         )
 
-        if self.asr_params.use_p:  # type: ignore
+        if self.params.use_p:  # type: ignore
             mask = mask_E & mask_theta
         else:
             mask = mask_E
@@ -472,14 +472,14 @@ class ASR(AbsSave, AbsVoxelInferer):
             for j in range(self.voi.n_vox_xyz[1]):
                 for k in range(self.voi.n_vox_xyz[2]):
                     if score_list[i][j][k] != []:
-                        vox_density_preds[i, j, k] = self.asr_params.score_method(score_list[i][j][k])  # type: ignore
+                        vox_density_preds[i, j, k] = self.params.score_method(score_list[i][j][k])  # type: ignore
                         self.n_mu_per_vox_test[i, j, k] = len(score_list[i][j][k])
         if vox_density_preds.isnan().any():
             raise ValueError("Prediction contains NaN values")
         self.score_list = score_list
         self._recompute_preds = False
 
-        if self.asr_params.use_p:
+        if self.params.use_p:
             return torch.exp(vox_density_preds)
         else:
             return vox_density_preds
@@ -599,14 +599,14 @@ class ASR(AbsSave, AbsVoxelInferer):
         return (self.tracks.theta_xy_out[0], self.tracks.theta_xy_out[1])
 
     @property
-    def asr_params(self) -> ASRParams:
+    def params(self) -> ASRParams:
         r"""
         The parameters of the ASR algorithm.
         """
-        return self._asr_params
+        return self._params
 
-    @asr_params.setter
-    def asr_params(self, value: ASRParams) -> None:
+    @params.setter
+    def params(self, value: ASRParams) -> None:
         r"""
         Sets the parameters of the ASR algorithm.
         Args:
@@ -614,14 +614,14 @@ class ASR(AbsSave, AbsVoxelInferer):
             valid name and non `None` values will be updated.
         """
         if not isinstance(value, ASRParams):
-            raise TypeError("asr_params must be an instance of ASRParams")
+            raise TypeError("params must be an instance of ASRParams")
 
-        if not hasattr(self, "_asr_params") or self._asr_params is None:
-            self._asr_params = ASRParams()
+        if not hasattr(self, "_params") or self._params is None:
+            self._params = ASRParams()
 
         for key, val in value.__dict__.items():
             if val is not None:
-                setattr(self._asr_params, key, val)
+                setattr(self._params, key, val)
 
         self._recompute_preds = True
 
@@ -659,4 +659,4 @@ class ASR(AbsSave, AbsVoxelInferer):
         r"""
         The name of the ASR configuration based on its parameters.
         """
-        return self.get_name_from_params(self.asr_params)
+        return self.get_name_from_params(self.params)

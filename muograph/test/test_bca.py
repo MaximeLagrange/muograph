@@ -47,7 +47,7 @@ def test_bca_predictions() -> None:
 
     bca = BCA(voi=VOI, tracking=mst)
 
-    bca.bca_params = {
+    bca.params = {
         "n_max_per_vox": 20,
         "n_min_per_vox": 3,
         "score_method": partial(torch.quantile, q=0.5),

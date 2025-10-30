@@ -45,7 +45,7 @@ def test_asr_predictions() -> None:
 
     asr = ASR(voi=VOI, tracking=mst)
 
-    asr.asr_params = ASRParams(
+    asr.params = ASRParams(
         score_method=partial(np.quantile, q=0.8),
         p_range=(0.0, 10000000),  # MeV
         dtheta_range=(0.1 * math.pi / 180, 10 * math.pi / 180),

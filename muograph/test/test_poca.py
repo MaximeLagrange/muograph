@@ -1,6 +1,6 @@
 from muograph.hits.hits import Hits
 from muograph.tracking.tracking import Tracking, TrackingMST
-from muograph.reconstruction.poca import POCA
+from muograph.reconstruction.poca import POCA, POCAParams
 from muograph.volume.volume import Volume
 
 import os
@@ -38,7 +38,7 @@ def get_mst(hits_file: str) -> TrackingMST:
 def test_poca_predictions() -> None:
     mst = get_mst(TEST_HIT_FILE)
 
-    poca = POCA(tracking=mst, voi=VOI)
+    poca: POCA[POCAParams] = POCA(tracking=mst, voi=VOI)  # type: ignore
 
     n_poca_uranium_x_region = poca.n_poca_per_vox[23:28].float().mean()
     n_poca_empty_x_region = poca.n_poca_per_vox[-5:].float().mean()

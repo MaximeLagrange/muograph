@@ -1,7 +1,7 @@
 import torch
 from torch import Tensor
 from copy import deepcopy
-from typing import Optional, Dict, Union, Tuple
+from typing import Optional, Dict, Union, Tuple, Generic, TypeVar, cast
 import matplotlib.pyplot as plt
 from fastprogress import progress_bar
 import numpy as np
@@ -36,7 +36,10 @@ class POCAParams:
     preds_clamp: float = 0.999
 
 
-class POCA(AbsSave, AbsVoxelInferer):
+P = TypeVar("P", bound="POCAParams")
+
+
+class POCA(AbsSave, AbsVoxelInferer, Generic[P]):
     r"""
     A class for Point Of Closest Approach computation in the context of a Muon Scattering Tomography analysis.
     """
@@ -62,7 +65,8 @@ class POCA(AbsSave, AbsVoxelInferer):
         "poca_indices",
     ]
 
-    _poca_params: POCAParams = POCAParams()
+    # _params: POCAParams = POCAParams()
+    _params: Optional[P] = None
 
     _recompute_preds: bool = True
 
@@ -299,7 +303,7 @@ class POCA(AbsSave, AbsVoxelInferer):
         return full_mask
 
     @staticmethod
-    def get_name_from_params(poca_params: POCAParams) -> str:
+    def get_name_from_params(params: POCAParams) -> str:
         """
         Generate a string name for the POCA instance based on its parameters.
 
@@ -307,10 +311,10 @@ class POCA(AbsSave, AbsVoxelInferer):
             asr_params (POCAParams): POCA parameters.
         """
         method = "POCA_"
-        p_clamp = "_p_clamp_{:.3f}".format(poca_params.p_clamp) if poca_params.use_p else ""
-        dtheta_clamp = "_dtheta_clamp_{:.3f}".format(poca_params.dtheta_clamp)
-        use_p = "_use_p" if poca_params.use_p else ""
-        preds_clamp = "_preds_clamp_{:.3f}".format(poca_params.preds_clamp)
+        p_clamp = "_p_clamp_{:.3f}".format(params.p_clamp) if params.use_p else ""
+        dtheta_clamp = "_dtheta_clamp_{:.3f}".format(params.dtheta_clamp)
+        use_p = "_use_p" if params.use_p else ""
+        preds_clamp = "_preds_clamp_{:.3f}".format(params.preds_clamp)
         name = method + dtheta_clamp + p_clamp + use_p + preds_clamp
         name = name.replace(".", "p")
         return name
@@ -401,7 +405,7 @@ class POCA(AbsSave, AbsVoxelInferer):
         of scattering angles, with optional momentum weighting.
 
         For each track, the scattering angle (``dtheta``) and, if enabled, the momentum (``p``)
-        are clamped at quantile thresholds defined in ``self.poca_params``. These values are
+        are clamped at quantile thresholds defined in ``self.params``. These values are
         then combined into a per-track score, which is accumulated voxel-wise according to
         the track's POCA-assigned voxel index. The RMS of the scores is computed per voxel.
 
@@ -423,11 +427,11 @@ class POCA(AbsSave, AbsVoxelInferer):
             assigned tracks are set to 0.
         """
 
-        dtheta_max = torch.quantile(self.tracks.dtheta, q=self.poca_params.dtheta_clamp)
+        dtheta_max = torch.quantile(self.tracks.dtheta, q=self.params.dtheta_clamp)
         dtheta = torch.clamp(self.tracks.dtheta, max=dtheta_max)
 
-        if self.poca_params.use_p:
-            p_max = torch.quantile(self.tracks.p, q=self.poca_params.p_clamp)
+        if self.params.use_p:
+            p_max = torch.quantile(self.tracks.p, q=self.params.p_clamp)
             p = torch.clamp(self.tracks.p, max=p_max)
             dtheta = torch.clamp(self.tracks.dtheta, max=dtheta_max)
             # score = (dtheta ** 2) * (torch.log(p ** 2)) / torch.log(p.mean() ** 2)
@@ -454,7 +458,7 @@ class POCA(AbsSave, AbsVoxelInferer):
 
         self._recompute_preds = False
 
-        voxel_rms_max = torch.quantile(voxel_rms, q=self.poca_params.preds_clamp)
+        voxel_rms_max = torch.quantile(voxel_rms, q=self.params.preds_clamp)
         voxel_rms = torch.clamp(voxel_rms, max=voxel_rms_max)
 
         return voxel_rms
@@ -481,12 +485,12 @@ class POCA(AbsSave, AbsVoxelInferer):
         track_indices = torch.nonzero(mask, as_tuple=True)[0]
 
         # dtheta values (clamped as in voxel_rms computation)
-        dtheta_max = torch.quantile(self.tracks.dtheta, q=self.poca_params.dtheta_clamp)
+        dtheta_max = torch.quantile(self.tracks.dtheta, q=self.params.dtheta_clamp)
         dtheta = torch.clamp(self.tracks.dtheta, max=dtheta_max)[mask]
 
         # p values (clamped if enabled)
-        if self.poca_params.use_p:
-            p_max = torch.quantile(self.tracks.p, q=self.poca_params.p_clamp)
+        if self.params.use_p:
+            p_max = torch.quantile(self.tracks.p, q=self.params.p_clamp)
             p = torch.clamp(self.tracks.p, max=p_max)[mask]
         else:
             p = None
@@ -568,21 +572,25 @@ class POCA(AbsSave, AbsVoxelInferer):
         return full_mask
 
     @property
-    def poca_params(self) -> POCAParams:
-        return self._poca_params
+    def params(self) -> POCAParams:
+        """Return the typed params instance for this POCA variant."""
+        if self._params is None:
+            self._params = cast(P, POCAParams())
+        return self._params
 
-    @poca_params.setter
-    def poca_params(self, value: POCAParams) -> None:
+    @params.setter
+    def params(self, value: P) -> None:
         """Safely update POCA parameters while preserving non-overwritten defaults."""
         if not isinstance(value, POCAParams):
-            raise TypeError("poca_params must be an instance of POCAParams")
+            raise TypeError("params must be an instance of POCAParams")
 
-        if not hasattr(self, "_poca_params") or self._poca_params is None:
-            self._poca_params = POCAParams()
+        if self._params is None:
+            # initialize with a default POCAParams and let the loop below overwrite fields
+            self._params = cast(P, POCAParams())
 
         for key, val in value.__dict__.items():
             if val is not None:
-                setattr(self._poca_params, key, val)
+                setattr(self._params, key, val)
 
         self._recompute_preds = True
 
@@ -591,4 +599,4 @@ class POCA(AbsSave, AbsVoxelInferer):
         r"""
         The name of the POCA configuration based on its parameters.
         """
-        return self.get_name_from_params(self.poca_params)
+        return self.get_name_from_params(self.params)

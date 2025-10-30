@@ -4,6 +4,22 @@ from scipy.ndimage import gaussian_filter
 import numpy as np
 from typing import Union, List
 import os
+import psutil
+
+
+def print_memory_usage(tag=""):
+    process = psutil.Process(os.getpid())
+    mem = psutil.virtual_memory()
+    used_gb = process.memory_info().rss / (1024**3)
+    total_gb = mem.total / (1024**3)
+    available_gb = mem.available / (1024**3)
+
+    print(f"[Memory] {tag} — {used_gb:.2f} GB used / {available_gb:.2f} GB available / {total_gb:.2f} GB total")
+
+    # (Optional) If using PyTorch
+    if torch.cuda.is_available():
+        gpu_mem = torch.cuda.memory_allocated() / (1024**3)
+        print(f"[GPU Memory] {tag} — {gpu_mem:.2f} GB allocated on GPU")
 
 
 def write_folder_structure_to_file(root_folder: str, output_file: str) -> None:

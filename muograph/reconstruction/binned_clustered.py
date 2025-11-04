@@ -460,30 +460,36 @@ class BCA(POCA[BCAParams], AbsVoxelInferer):
         r"""
         Returns the name of the bca given its parameters.
         """
+        name = self.get_string_params()
+        name = name.replace(", ", "_")
+
+        return name
+
+    def get_string_params(self) -> str:
+        """
+        Converts a dataclass-like params object into a readable string, including partial functions.
+        """
 
         def get_partial_name_args(func: partial) -> str:
-            r"""
+            """
             Returns the name, arguments and their value of a partial method as a string.
             """
             func_name = func.func.__name__
             args, values = list(func.keywords.keys()), list(func.keywords.values())
             for i, arg in enumerate(args):
-                func_name += "_{}={}".format(arg, values[i])
+                func_name += f"_{arg}={values[i]}"
             return func_name
 
-        method = "method_{}_".format(get_partial_name_args(self.params.score_method))  # type: ignore
-        metric = "metric_{}_".format(get_partial_name_args(self.params.metric_method))  # type: ignore
-        dtheta = "{:.1f}_{:.1f}_mrad_".format(self.params.dtheta_range[0] * 1000, self.params.dtheta_range[1] * 1000)  # type: ignore
-        dp = "{:.0f}_{:.0f}_MeV_".format(self.params.p_range[0], self.params.p_range[1])  # type: ignore
-        n_min_max = "n_min_max_{}_{}_".format(self.params.n_min_per_vox, self.params.n_max_per_vox)
-        use_p = "use_p_{}".format(self.params.use_p)
-        p_clamp = "_pclamp_{:.3f}".format(self.params.p_clamp) if self.params.use_p else ""
-        dtheta_clamp = "_dthetaclamp_{:.3f}".format(self.params.dtheta_clamp)
-        preds_clamp = "_preds_clamp_{:.3f}".format(self.params.preds_clamp)
-
-        bca_name = method + metric + dtheta + dp + n_min_max + use_p + p_clamp + dtheta_clamp + preds_clamp
-        bca_name = bca_name.replace(".", "p")
-        return bca_name
+        parts = []
+        for key, val in vars(self.params).items():
+            if isinstance(val, partial):
+                val_str = get_partial_name_args(val)
+            elif isinstance(val, (tuple, list)):
+                val_str = "_".join([str(v) for v in val])
+            else:
+                val_str = str(val)
+            parts.append(f"{key}={val_str}")
+        return ", ".join(parts)
 
     @property
     def name(self) -> str:

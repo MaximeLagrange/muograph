@@ -343,9 +343,8 @@ class ASR(AbsSave, AbsVoxelInferer):
                 triggered_voxels.append(np.empty([0, 3]))
         return triggered_voxels
 
-    @staticmethod
     def get_name_from_params(
-        params: ASRParams,
+        self,
     ) -> str:
         r"""
         Returns a string representing the ASR configuration based on its parameters.
@@ -361,16 +360,10 @@ class ASR(AbsSave, AbsVoxelInferer):
                 func_name += "_{}={}".format(arg, values[i])
             return func_name
 
-        method = "method_{}_".format(get_partial_name_args(params.score_method))  # type: ignore
-        dtheta = "{:.2f}_{:.2f}_rad_".format(params.dtheta_range[0], params.dtheta_range[1])  # type: ignore
-        dp = "{:.0f}_{:.0f}_MeV_".format(params.p_range[0], params.p_range[1])  # type: ignore
-        use_p = "use_p_{}".format(params.use_p)
-        p_clamp = "_pclamp_{:.3f}".format(params.p_clamp) if params.use_p else ""
-        dtheta_clamp = "_dthetaclamp_{:.3f}".format(params.dtheta_clamp)
-
-        asr_name = method + dtheta + dp + use_p + p_clamp + dtheta_clamp
-        asr_name = asr_name.replace(".", "p")
-        return asr_name
+        method = "ASR_"
+        name = self.get_string_params()
+        name = name.replace(", ", "_")
+        return method + name
 
     @staticmethod
     def get_triggered_voxels(
@@ -582,6 +575,32 @@ class ASR(AbsSave, AbsVoxelInferer):
             plt.savefig(figname, bbox_inches="tight")
         plt.show()
 
+    def get_string_params(self) -> str:
+        """
+        Converts a dataclass-like params object into a readable string, including partial functions.
+        """
+
+        def get_partial_name_args(func: partial) -> str:
+            """
+            Returns the name, arguments and their value of a partial method as a string.
+            """
+            func_name = func.func.__name__
+            args, values = list(func.keywords.keys()), list(func.keywords.values())
+            for i, arg in enumerate(args):
+                func_name += f"_{arg}={values[i]}"
+            return func_name
+
+        parts = []
+        for key, val in vars(self.params).items():
+            if isinstance(val, partial):
+                val_str = get_partial_name_args(val)
+            elif isinstance(val, (tuple, list)):
+                val_str = "_".join([str(v) for v in val])
+            else:
+                val_str = str(val)
+            parts.append(f"{key}={val_str}")
+        return ", ".join(parts)
+
     @property
     def theta_xy_in(self) -> Tuple[Tensor, Tensor]:
         r"""
@@ -659,4 +678,4 @@ class ASR(AbsSave, AbsVoxelInferer):
         r"""
         The name of the ASR configuration based on its parameters.
         """
-        return self.get_name_from_params(self.params)
+        return self.get_name_from_params()

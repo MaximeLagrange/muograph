@@ -302,8 +302,7 @@ class POCA(AbsSave, AbsVoxelInferer, Generic[P]):
 
         return full_mask
 
-    @staticmethod
-    def get_name_from_params(params: POCAParams) -> str:
+    def get_name_from_params(self) -> str:
         """
         Generate a string name for the POCA instance based on its parameters.
 
@@ -311,13 +310,9 @@ class POCA(AbsSave, AbsVoxelInferer, Generic[P]):
             asr_params (POCAParams): POCA parameters.
         """
         method = "POCA_"
-        p_clamp = "_p_clamp_{:.3f}".format(params.p_clamp) if params.use_p else ""
-        dtheta_clamp = "_dtheta_clamp_{:.3f}".format(params.dtheta_clamp)
-        use_p = "_use_p" if params.use_p else ""
-        preds_clamp = "_preds_clamp_{:.3f}".format(params.preds_clamp)
-        name = method + dtheta_clamp + p_clamp + use_p + preds_clamp
-        name = name.replace(".", "p")
-        return name
+        name = self.get_string_params()
+        name = name.replace(", ", "_")
+        return method + name
 
     def plot_poca_event(self, event: int, proj: str = "XZ", voi: Optional[Volume] = None, figname: Optional[str] = None) -> None:
         """
@@ -497,6 +492,20 @@ class POCA(AbsSave, AbsVoxelInferer, Generic[P]):
 
         return track_indices, dtheta, p
 
+    def get_string_params(self) -> str:
+        """
+        Converts a dataclass-like params object into a readable string, including partial functions.
+        """
+
+        parts = []
+        for key, val in vars(self.params).items():
+            if isinstance(val, (tuple, list)):
+                val_str = "_".join([str(v) for v in val])
+            else:
+                val_str = str(val)
+            parts.append(f"{key}={val_str}")
+        return ", ".join(parts)
+
     @property
     def n_mu(self) -> int:
         r"""The number of muons."""
@@ -599,4 +608,4 @@ class POCA(AbsSave, AbsVoxelInferer, Generic[P]):
         r"""
         The name of the POCA configuration based on its parameters.
         """
-        return self.get_name_from_params(self.params)
+        return self.get_name_from_params()

@@ -36,21 +36,17 @@ def write_folder_structure_to_file(root_folder: str, output_file: str) -> None:
                 file.write(f"    {filename}\n")
 
 
-def normalize(x: Union[Tensor, np.ndarray]) -> Union[Tensor, np.ndarray]:
+def normalize(x: Tensor) -> Tensor:
     r"""Normalize the input array.
 
     Args:
-        x (Union[Tensor, np.ndarray]): Input array.
+        x (Tensor): Input array.
 
     Returns:
-        array (Union [Tensor, np.ndarray]): The normalized array.
+        array (Tensor): The normalized array.
     """
-    if isinstance(x, Tensor):
-        return (x - torch.min(x)) / (torch.max(x) - torch.min(x))
-    elif isinstance(x, np.ndarray):
-        return (x - np.min(x)) / (np.max(x) - np.min(x))
-    else:
-        raise TypeError(f"Input type {type(x)} is not supported. Expected Tensor or np.ndarray.")
+
+    return (x - torch.min(x)) / (torch.max(x) - torch.min(x))
 
 
 def apply_gaussian_filter(x: Union[Tensor, np.ndarray], sigma: List[float]) -> Union[Tensor, np.ndarray]:

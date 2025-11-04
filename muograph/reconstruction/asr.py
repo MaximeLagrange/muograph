@@ -465,7 +465,7 @@ class ASR(AbsSave, AbsVoxelInferer):
             for j in range(self.voi.n_vox_xyz[1]):
                 for k in range(self.voi.n_vox_xyz[2]):
                     if score_list[i][j][k] != []:
-                        vox_density_preds[i, j, k] = self.params.score_method(score_list[i][j][k])  # type: ignore
+                        vox_density_preds[i, j, k] = float(self.params.score_method(score_list[i][j][k]))  # type: ignore
                         self.n_mu_per_vox_test[i, j, k] = len(score_list[i][j][k])
         if vox_density_preds.isnan().any():
             raise ValueError("Prediction contains NaN values")

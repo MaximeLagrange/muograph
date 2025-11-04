@@ -481,6 +481,7 @@ class VoxelPlotting:
         pred_unit: str = "",
         scale: float = scale,
         cmap: str = cmap,
+        extension: str = "pdf",
     ) -> None:
         """
         Plots voxel predictions by slicing through a specified dimension of the volume of interest.
@@ -505,6 +506,11 @@ class VoxelPlotting:
         Returns:
             - None: Displays the generated plots and optionally saves them to a file.
         """
+
+        if extension not in ["pdf", "png", "svg"]:
+            raise ValueError(
+                f"Extension must be pdf, png or svg, got {extension}"
+            )
 
         set_plot_style()
 
@@ -691,7 +697,7 @@ class VoxelPlotting:
         # Save file
         if figname is not None:
             fig.savefig(
-                figname + "_" + dim_mapping[dim]["plane"] + "_view_slice.pdf",  # type: ignore
+                figname + "_" + dim_mapping[dim]["plane"] + f"_view_slice.{extension}",  # type: ignore
                 bbox_inches="tight",
             )
 

@@ -56,10 +56,10 @@ class Scan:
 
         Args:
             input_data (Union[str, Path, pd.DataFrame]): The input data source containing muon hits. Can be a path to a CSV, ROOT file
-                or an in-memory pandas DataFrame.
+            or an in-memory pandas DataFrame.
             voi (Volume): The volume of interest defining the 3D region to be reconstructed.
             algorithms (List[Algorithm]): List of reconstruction algorithms to execute. Each `Algorithm` wraps the
-                algorithm class reference, its parameter object, and stores results.
+            algorithm class reference, its parameter object, and stores results.
             plane_labels_in_out (Tuple[Tuple[int, ...], Tuple[int, ...]]): Two tuples specifying the detector plane indices for incoming and outgoing hits.
             energy_range (Optional[Tuple[float, float]], optional): Allowed energy range (min, max) for filtering muons. Default is None (no filtering).
             spatial_res (Tuple[float, float, float], optional): Spatial resolution (sigma_x, sigma_y, sigma_z) in millimeters for hit uncertainty modeling. Defaults to (0.0, 0.0, 0.0).
@@ -250,11 +250,11 @@ class Visualizer:
         """
         Validates and prepares the output directory.
 
-        - If None - defaults to 'output/'
-        - If not exists, creates it
+        - If None → defaults to 'output/'
+        - If not exists → creates it
         - If exists:
-            • overwrite=False, raises FileExistsError
-            • overwrite=True , deletes and recreates it
+            • overwrite=True  → deletes and recreates it
+            • overwrite=False → keeps it as-is and reuses it
 
         Returns:
             Path: The prepared output directory
@@ -262,7 +262,7 @@ class Visualizer:
         # --- Normalize type
         if output_dir is None:
             output_dir = Path("output")
-            print("[INFO] No output directory specified, using default: 'output/'")
+
         elif isinstance(output_dir, str):
             output_dir = Path(output_dir)
 
@@ -279,8 +279,7 @@ class Visualizer:
                     output_dir.mkdir(parents=True, exist_ok=False)
                 except Exception as e:
                     raise OSError(f"[ERROR] Failed to overwrite directory '{output_dir}': {e}")
-            else:
-                raise FileExistsError(f"[ERROR] Output directory already exists: {output_dir}. " "Use overwrite=True to replace it.")
+
         else:
             try:
                 output_dir.mkdir(parents=True, exist_ok=False)
@@ -294,13 +293,17 @@ class Visualizer:
         self,
         smooth: bool = True,
         extension: str = "pdf",
+        id: Optional[int] = None,
     ) -> None:
         preds = self.smoothed_preds if smooth else self.preds_norm
 
         for dim in [0, 1, 2]:
             nslices = self.voi.n_vox_xyz[dim]
             ncols = max(int(math.sqrt(nslices)), int(math.sqrt(nslices)) + 1)
-            algo_name = self.params["algorithm_name"] + "_" if self.params is not None else ""
+            smooth_str = f"_smooth_{self._gauss_ker[0]:.2f}" if smooth else ""
+            id_str = f"_{id}" if id is not None else ""
+            algo_name = self.params["algorithm_name"] + id_str + smooth_str + "_" if self.params is not None else ""
+            algo_name = algo_name.replace(".", "p")
             pred_label = self.params["algorithm_name"] + " score" if self.params is not None else ""
             figname = str(self.output_dir) + "/" + algo_name
             vp.plot_pred_by_slice(

@@ -43,6 +43,7 @@ class Scan:
         voi: Volume,
         algorithms: List[Algorithm],
         plane_labels_in_out: Tuple[Tuple[int, ...], Tuple[int, ...]],
+        hits: Optional[Tuple[Hits, Hits]] = None,
         energy_range: Optional[Tuple[float, float]] = None,
         spatial_res: Tuple[float, float, float] = (0.0, 0.0, 0.0),
         n_mu_max: Optional[int] = None,
@@ -75,15 +76,20 @@ class Scan:
         self.mask = mask
 
         print_memory_usage("Preparing hits for Scan")
-        self._hits_in = self._make_hits(self.plane_label_in)
+        if hits is None:
+            self._hits_in = self._make_hits(self.plane_label_in)
 
-        self._hits_out = self._make_hits(self.plane_label_out)
+            self._hits_out = self._make_hits(self.plane_label_out)
+        else:
+            self._hits_in = hits[0]
+            self._hits_out = hits[1]
 
         self._tracking = TrackingMST((Tracking(hits=self._hits_in, label="above"), Tracking(hits=self._hits_out, label="below")))
 
         if mask is not None:
             assert len(mask) == self._tracking.n_mu, f"Provided mask has size {len(mask):,d} but tracking has {self._tracking.n_mu:,d} muons"
             self._tracking._filter_muons(mask)
+            print(f"[Filtering] {len(mask) - int(mask.sum())} muons got filtered out, {self._tracking.n_mu} muons remaining.")
         print_memory_usage("Tracking prepared")
 
     def _make_hits(self, plane_labels: Tuple[int, ...]) -> Hits:

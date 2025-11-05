@@ -508,9 +508,7 @@ class VoxelPlotting:
         """
 
         if extension not in ["pdf", "png", "svg"]:
-            raise ValueError(
-                f"Extension must be pdf, png or svg, got {extension}"
-            )
+            raise ValueError(f"Extension must be pdf, png or svg, got {extension}")
 
         set_plot_style()
 

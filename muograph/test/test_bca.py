@@ -1,6 +1,6 @@
 from muograph.hits.hits import Hits
 from muograph.tracking.tracking import Tracking, TrackingMST
-from muograph.reconstruction.binned_clustered import BCA
+from muograph.reconstruction.binned_clustered import BCA, BCAParams
 from muograph.volume.volume import Volume
 from muograph.utils.save import muograph_path
 
@@ -47,14 +47,15 @@ def test_bca_predictions() -> None:
 
     bca = BCA(voi=VOI, tracking=mst)
 
-    bca.params = {
-        "n_max_per_vox": 20,
-        "n_min_per_vox": 3,
-        "score_method": partial(torch.quantile, q=0.5),
-        "metric_method": partial(torch.log),  # type: ignore
-        "p_range": (0, 1000000),
-        "dtheta_range": (0.05 * math.pi / 180, 20 * math.pi / 180),
-    }
+    bca.params = BCAParams(
+        n_max_per_vox=50,
+        n_min_per_vox=2,
+        score_method=partial(torch.quantile, q=0.7),
+        metric_method=partial(torch.log),
+        p_range=(0.0, 10_000_000),  # MeV
+        dtheta_range=(0.1 * math.pi / 180, math.pi / 3),
+        use_p=True,
+    )
 
     n_poca_uranium_x_region = bca.xyz_voxel_pred[23:28].float().mean()
     n_poca_empty_x_region = bca.xyz_voxel_pred[-5:].float().mean()

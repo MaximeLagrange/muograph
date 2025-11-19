@@ -4408,18 +4408,18 @@ files = [
 
 [[package]]
 name = "uproot"
-version = "5.6.4"
+version = "5.6.8"
 description = "ROOT I/O in pure Python and NumPy."
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev"]
 files = [
-    {file = "uproot-5.6.4-py3-none-any.whl", hash = "sha256:53486665d5b59cec40d508156e94d80d6a6ff742b2fb8bd6d955c1339faab365"},
-    {file = "uproot-5.6.4.tar.gz", hash = "sha256:4a14d81466398dbc89d809520b5ec600ab725307f4c2ee60e15634c6e52c9308"},
+    {file = "uproot-5.6.8-py3-none-any.whl", hash = "sha256:dd50d1f602a599bfd9575b69220373a2a3cadb9528a838d2d2be54e048bbafc1"},
+    {file = "uproot-5.6.8.tar.gz", hash = "sha256:e4f314615f6b4ea77265c45d4a3876abf76a5e2595a5feb2e4d305ce6cebb399"},
 ]
 
 [package.dependencies]
-awkward = ">=2.4.6"
+awkward = ">=2.8.2"
 cramjam = ">=2.5.0"
 fsspec = "!=2025.7.0"
 numpy = "*"

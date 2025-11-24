@@ -1,3 +1,5 @@
+import numpy as np
+
 from pathlib import Path
 import pandas as pd
 import torch
@@ -177,6 +179,25 @@ class Hits:
                 raise ValueError(f"Variable '{var}' has inconsistent inner lengths.")
             arrays_grouped[var] = ak.to_regular(arrays_grouped[var])
 
+        print(arrays_grouped.keys())
+        print(type(arrays_grouped["plane"]))
+        print(np.array(arrays_grouped).shape)
+        print(np.array(arrays_grouped["plane"]).shape)
+
+        for m in range(0, np.array(arrays_grouped["plane"]).shape[0]):
+            #            print(m)
+            arrays_grouped["x"] = ak.sort(arrays_grouped["x"])
+            arrays_grouped["y"] = ak.sort(arrays_grouped["y"])
+            arrays_grouped["z"] = ak.sort(arrays_grouped["z"])
+            arrays_grouped["px"] = ak.sort(arrays_grouped["px"])
+            arrays_grouped["py"] = ak.sort(arrays_grouped["py"])
+            arrays_grouped["pz"] = ak.sort(arrays_grouped["pz"])
+            arrays_grouped["kineticEnergy"] = ak.sort(arrays_grouped["kineticEnergy"])
+            arrays_grouped["plane"] = ak.sort(arrays_grouped["plane"])
+
+        print(arrays_grouped["x"][0:4])
+        print(arrays_grouped["plane"][0:4])
+
         def expand_variable(name: str, arr: ak.Array) -> dict[str, pd.Series]:
             n_components = ak.num(arr, axis=1)[0]  # number of columns
             return {f"{name}{n_components - (i + 1)}": arr[:, i].to_numpy() for i in range(n_components)}
@@ -352,6 +373,7 @@ class Hits:
     def plot(
         self,
         plane_label: int = 0,
+        coordinates="xy",
         reco_hits: bool = True,
         n_bins: int = n_bins_2D,
         cmap: str = cmap,
@@ -374,34 +396,77 @@ class Hits:
         # Get true hits or real hits
         hits = self.reco_hits if reco_hits is True else self.gen_hits
 
-        # The span of the detector in x and y
-        dx = (hits[0, plane_label].max() - hits[0, plane_label].min()).item()
-        dy = (hits[1, plane_label].max() - hits[1, plane_label].min()).item()
+        if coordinates == "xy":
+            # The span of the detector in x and y
+            dx = (hits[0, plane_label].max() - hits[0, plane_label].min()).item()
+            dy = (hits[1, plane_label].max() - hits[1, plane_label].min()).item()
+        if coordinates == "xz":
+            # The span of the detector in x and z
+            dx = (hits[0, plane_label].max() - hits[0, plane_label].min()).item()
+            dy = (hits[2, plane_label].max() - hits[2, plane_label].min()).item()
+        if coordinates == "yz":
+            # The span of the detector in y and z
+            dx = (hits[1, plane_label].max() - hits[1, plane_label].min()).item()
+            dy = (hits[2, plane_label].max() - hits[2, plane_label].min()).item()
 
         # Get the number of bins as function of the xy ratio
         bins_x, bins_y, pixel_size = get_n_bins_xy_from_xy_span(dx=dx, dy=dy, n_bins=n_bins)
 
         # Plot hits as 2D histogram
-        h = ax.hist2d(
-            hits[0, plane_label].detach().cpu().numpy(),
-            hits[1, plane_label].detach().cpu().numpy(),
-            bins=(bins_x, bins_y),
-            cmap=cmap,
-        )
+        if coordinates == "xy":
+            h = ax.hist2d(
+                hits[0, plane_label].detach().cpu().numpy(),
+                hits[1, plane_label].detach().cpu().numpy(),
+                bins=(bins_x, bins_y),
+                cmap=cmap,
+            )
 
-        ax.set_aspect("equal")
+            ax.set_xlabel(f"x [{d_unit}]", fontweight="bold")
+            ax.set_ylabel(f"y [{d_unit}]", fontweight="bold")
 
-        # Set axis labels
-        ax.set_xlabel(f"x [{d_unit}]", fontweight="bold")
-        ax.set_ylabel(f"y [{d_unit}]", fontweight="bold")
+            fig.suptitle(
+                f"Muon hits on plane {plane_label} \nat z = {hits[2, plane_label, :].mean(dim=-1):.0f} [{d_unit}]",
+                fontweight="bold",
+                y=1,
+            )
+
+        if coordinates == "xz":
+            h = ax.hist2d(
+                hits[0, plane_label].detach().cpu().numpy(),
+                hits[2, plane_label].detach().cpu().numpy(),
+                bins=(bins_x, bins_y),
+                cmap=cmap,
+            )
+
+            ax.set_xlabel(f"x [{d_unit}]", fontweight="bold")
+            ax.set_ylabel(f"z [{d_unit}]", fontweight="bold")
+
+            fig.suptitle(
+                f"Muon hits on plane {plane_label} \nat y = {hits[1, plane_label, :].mean(dim=-1):.0f} [{d_unit}]",
+                fontweight="bold",
+                y=1,
+            )
+
+        if coordinates == "yz":
+            h = ax.hist2d(
+                hits[1, plane_label].detach().cpu().numpy(),
+                hits[2, plane_label].detach().cpu().numpy(),
+                bins=(bins_x, bins_y),
+                cmap=cmap,
+            )
+
+            ax.set_xlabel(f"y [{d_unit}]", fontweight="bold")
+            ax.set_ylabel(f"z [{d_unit}]", fontweight="bold")
+
+            fig.suptitle(
+                f"Muon hits on plane {plane_label} \nat x = {hits[0, plane_label, :].mean(dim=-1):.0f} [{d_unit}]",
+                fontweight="bold",
+                y=1,
+            )
+
         ax.tick_params(axis="both", labelsize=labelsize)
 
-        # Set figure title
-        fig.suptitle(
-            f"Muon hits on plane {plane_label} \nat z = {hits[2,plane_label,:].mean(dim=-1):.0f} [{d_unit}]",
-            fontweight="bold",
-            y=1,
-        )
+        ax.set_aspect("equal")
 
         add_colorbar_right(ax=ax, mappable=h[3], label=f"hits / {pixel_size**2:.0f} {d_unit}$^2$")
 

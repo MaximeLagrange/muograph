@@ -1,5 +1,5 @@
-tutorials/*
-output_test/*
+tutorials/
+output_test/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

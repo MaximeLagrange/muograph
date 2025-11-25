@@ -1,4 +1,4 @@
-import numpy as np
+# import numpy as np
 
 from pathlib import Path
 import pandas as pd
@@ -7,7 +7,8 @@ from torch import Tensor
 import uproot  # type: ignore
 from typing import Optional, Tuple, Dict, Union
 import matplotlib.pyplot as plt
-import awkward as ak  # type: ignore
+
+# import awkward as ak  # type: ignore
 
 from muograph.plotting.plotting import get_n_bins_xy_from_xy_span
 from muograph.plotting.params import (
@@ -159,56 +160,31 @@ class Hits:
 
             arrays = {branch: tree[branch].array() for branch in tree.keys()}
 
-        required_vars = ["eventID", "x", "y", "z", "kineticEnergy"]
-        missing = [v for v in required_vars if v not in arrays]
-        if missing:
-            raise KeyError(f"Missing required branches in ROOT file: {missing}")
+        # Consider bidirectional flux #
 
-        # Sort by eventID
-        order = ak.argsort(arrays["eventID"])
-        arrays = {k: v[order] for k, v in arrays.items()}
-
-        # Group arrays by event length ---
-        counts = ak.run_lengths(arrays["eventID"])
-        arrays_grouped = {k: ak.unflatten(v, counts) for k, v in arrays.items()}
-
-        # Convert x, y, z, kineticEnergy to regular arrays ---
-        for var in ["x", "y", "z", "kineticEnergy"]:
-            inner_lengths = ak.num(arrays_grouped[var])
-            if not ak.all(inner_lengths == inner_lengths[0]):
-                raise ValueError(f"Variable '{var}' has inconsistent inner lengths.")
-            arrays_grouped[var] = ak.to_regular(arrays_grouped[var])
-
-        print(arrays_grouped.keys())
-        print(type(arrays_grouped["plane"]))
-        print(np.array(arrays_grouped).shape)
-        print(np.array(arrays_grouped["plane"]).shape)
-
-        for m in range(0, np.array(arrays_grouped["plane"]).shape[0]):
-            #            print(m)
-            arrays_grouped["x"] = ak.sort(arrays_grouped["x"])
-            arrays_grouped["y"] = ak.sort(arrays_grouped["y"])
-            arrays_grouped["z"] = ak.sort(arrays_grouped["z"])
-            arrays_grouped["px"] = ak.sort(arrays_grouped["px"])
-            arrays_grouped["py"] = ak.sort(arrays_grouped["py"])
-            arrays_grouped["pz"] = ak.sort(arrays_grouped["pz"])
-            arrays_grouped["kineticEnergy"] = ak.sort(arrays_grouped["kineticEnergy"])
-            arrays_grouped["plane"] = ak.sort(arrays_grouped["plane"])
-
-        print(arrays_grouped["x"][0:4])
-        print(arrays_grouped["plane"][0:4])
-
-        def expand_variable(name: str, arr: ak.Array) -> dict[str, pd.Series]:
-            n_components = ak.num(arr, axis=1)[0]  # number of columns
-            return {f"{name}{n_components - (i + 1)}": arr[:, i].to_numpy() for i in range(n_components)}
+        x = arrays["x"]
+        y = arrays["y"]
+        z = arrays["z"]
+        kineticEnergy = arrays["kineticEnergy"]
+        plane = arrays["plane"]
 
         data = {}
-        data.update(expand_variable("X", arrays_grouped["x"]))
-        data.update(expand_variable("Y", arrays_grouped["y"]))
-        data.update(expand_variable("Z", arrays_grouped["z"]))
-        data["E"] = arrays_grouped["kineticEnergy"][:, 0].to_numpy()
+
+        DetectionUnits = max(plane) + 1  # plain panels normally
+
+        for p in range(0, DetectionUnits):
+            data.update({("X" + str(p)): x[plane == p].to_numpy()})
+            data.update({("Y" + str(p)): y[plane == p].to_numpy()})
+            data.update({("Z" + str(p)): z[plane == p].to_numpy()})
+
+        data.update({("E"): kineticEnergy[plane == p].to_numpy()})
+
+        # Consider bidirectional flux #
 
         df = pd.DataFrame(data)
+
+        #        print(df)
+        #        print(df.shape)
 
         return df.iloc[:n_mu_max] if n_mu_max is not None else df
 

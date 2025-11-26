@@ -431,6 +431,9 @@ class POCA(AbsSave, AbsVoxelInferer, Generic[P]):
             dtheta = torch.clamp(self.tracks.dtheta, max=dtheta_max)
             # score = (dtheta ** 2) * (torch.log(p ** 2)) / torch.log(p.mean() ** 2)
             score = (dtheta**2) * ((p**2)) / (p.mean() ** 2)
+            print(dtheta.shape)
+            print(p.shape)
+            print(score.shape)
 
         else:
             score = dtheta**2
@@ -441,6 +444,9 @@ class POCA(AbsSave, AbsVoxelInferer, Generic[P]):
 
         # Count number of entries per voxel
         counts = torch.bincount(flat_indices, minlength=nx * ny * nz)
+
+        print((flat_indices).shape)
+        print((score).shape)
 
         sums = torch.bincount(flat_indices, weights=score, minlength=nx * ny * nz)
 

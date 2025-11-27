@@ -179,8 +179,6 @@ class Hits:
 
         data.update({("E"): kineticEnergy[plane == p].to_numpy()})
 
-        # Consider bidirectional flux #
-
         df = pd.DataFrame(data)
 
         #        print(df)

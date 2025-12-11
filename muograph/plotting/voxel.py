@@ -461,6 +461,10 @@ class VoxelPlotting:
         # Save plot
         if figname is not None:
             plt.savefig(
+                figname + "_" + dim_mapping[dim]["plane"] + "_view.png",  # type: ignore
+                bbox_inches="tight",
+            )
+            plt.savefig(
                 figname + "_" + dim_mapping[dim]["plane"] + "_view.pdf",  # type: ignore
                 bbox_inches="tight",
             )

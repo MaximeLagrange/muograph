@@ -117,7 +117,7 @@ class Tracking(AbsSave):
         if self.angular_res == 0.0:
             description += "\n with perfect angular resolution."
         else:
-            description += f"\n with angular resolution = {self.angular_res*180/math.pi:.2f} deg"
+            description += f"\n with angular resolution = {self.angular_res * 180 / math.pi:.2f} deg"
         return description
 
     @staticmethod
@@ -217,9 +217,25 @@ class Tracking(AbsSave):
             - tracks, points (Tuple[Tensor, Tensor]): The points and tracks tensors
             with respective size (mu, 3).
         """
+        print("Using -def get_tracks_points_from_two_hits-")
 
         points = torch.mean(hits, dim=1)
         tracks = (hits[:, -1] - hits[:, 0]) / torch.norm(hits[:, -1] - hits[:, 0], dim=0, keepdim=True)
+
+        # All tz should be <0
+        tracks[:, tracks[2, :] > 0] = tracks[:, tracks[2, :] > 0] * -1
+
+        #        tracks = (hits[:, -1] - hits[:, 0])
+        #        tracks = tracks/tracks[2, :]*-1
+        #        tracks = tracks / torch.norm(hits[:, -1] - hits[:, 0], dim=0, keepdim=True)
+        #        tracks = tracks / torch.norm(tracks)
+
+        print(tracks)
+        print(tracks.size())
+
+        #        tracks = tracks/tracks[2, :]
+
+        #        tracks = tracks/tracks[:,]
 
         return tracks.T, points.T
 
